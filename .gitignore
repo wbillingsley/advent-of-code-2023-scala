@@ -3,6 +3,7 @@
 .bsp
 .metals
 project/metals.sbt
+.scala-build/
 
 # vs code
 .vscode
