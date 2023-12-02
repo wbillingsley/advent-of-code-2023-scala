@@ -1,32 +1,52 @@
 import scala.io.*
 
-val numbers = (for 
-    (text, i) <- Seq("one", "two", "three", "four", "five", "six", "seven", "eight", "nine").zipWithIndex
-yield text -> (i + 1)).toMap
+// The colours of the balls
+enum Colour:
+    case Red, Green, Blue
 
-val longestNum = numbers.keySet.map(_.length).max
+// A Drawing is some number of balls of each colour
+type Drawing = Map[Colour, Int]
 
-// Pad the string to ensure a sliding window won't stop early
-val padding = " " * longestNum
+// A game has an Id and some number of drawings
+type Game = (Int, Seq[Drawing])
 
-def digitify(s:String):Option[Int] = 
-    if s.isEmpty then None
-    else if s(0).isDigit then Some(s(0).asDigit)
-    else for 
-        n <- numbers.keySet.find(s.startsWith(_))
-    yield numbers(n)
+// How many balls of each colour exist
+def ballCount = Map(
+    Colour.Red -> 12, Colour.Green -> 13, Colour.Blue -> 14
+)
 
-def value(s:String):Int = 
-    println(s)
-    val digits = (for 
-        window <- (s + padding).sliding(longestNum) 
-        d <- digitify(window)
-    yield d).toSeq
-    println(digits)
-    val d = digits.head * 10 + digits.last
-    println(d)
-    d
+// A game is a game id, followed by text
+val game = raw"Game (\d*):(.*)".r
+
+val red = raw"(\d*) red".r
+val green = raw"(\d*) green".r
+val blue = raw"(\d*) blue".r
+
+def lineToGame(s:String):Game = s match {
+    case game(id, text) => id.toInt -> (
+        for drawingText <- text.split(";").toSeq
+        yield
+            drawingText.split(",").toSeq.map(_.trim).map({
+                case red(n) => Colour.Red -> n.toInt
+                case green(n) => Colour.Green -> n.toInt
+                case blue(n) => Colour.Blue -> n.toInt
+            }).toMap
+    )
+}
+
+// A game is valid if for all its drawings, for every colour the number of balls drawn is <= how many of that colour there are
+def isValid(g:Game):Boolean = 
+    val (_, drawings) = g
+    drawings.forall { d =>
+        Colour.values.forall { c =>
+            d.getOrElse(c, 0) <= ballCount(c)
+        }
+    }
 
 @main def main() = 
-    val file = Source.fromFile("input.txt").getLines()
-    println(s"Sum is ${file.map(value).sum}")
+    val lines = Source.fromFile("input.txt").getLines()
+    val games = lines.map(lineToGame)
+    val validIds = games.filter(isValid).map(_._1).toSeq
+    println(validIds)
+    println(s"Sum of valid ids is ${validIds.sum}")
+
