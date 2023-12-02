@@ -43,10 +43,15 @@ def isValid(g:Game):Boolean =
         }
     }
 
+// We need the minimum number of each colour of ball that would make the game valid, multiplied together
+def minimumPower(g:Game):Int =
+    val (_, drawings) = g
+    (for c <- Colour.values.toSeq yield drawings.map((d) => d.getOrElse(c, 0)).max).product
+
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines()
-    val games = lines.map(lineToGame)
-    val validIds = games.filter(isValid).map(_._1).toSeq
-    println(validIds)
-    println(s"Sum of valid ids is ${validIds.sum}")
+    val games = lines.map(lineToGame).toSeq
+    val minPowers = games.map(minimumPower)
+    println(minPowers)
+    println(s"Sum of minimum powers is ${minPowers.sum}")
 
