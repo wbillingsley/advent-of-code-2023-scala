@@ -1,14 +1,18 @@
 import scala.io.*
 
-// This is the solution for part 1
-// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star3/solver.scala
-// (or select the "star3" branch from GitHub)
+// This is the solution for part 2
+// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star5/solver.scala
+// (or select the "star5" branch from GitHub)
 
 
 type Coord = (Int, Int)
+
+// Ok, I guessed we'd have vertical numbers and I was wrong!
 type CoordRange = (Coord, Coord)
+
 type PartNumber = (Int, CoordRange)
 
+// Whether a coordinate is adjacent (including diagonally) from a range
 def isAdjacent(coord:Coord, range:CoordRange):Boolean = 
     val ((minX, minY), (maxX, maxY)) = range
     val (x, y) = coord
