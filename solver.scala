@@ -1,65 +1,58 @@
 import scala.io.*
 
-// This is the solution for part 2
+// This is the solution for part 1
 // For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star3/solver.scala
 // (or select the "star3" branch from GitHub)
 
-// The colours of the balls
-enum Colour:
-    case Red, Green, Blue
 
-// A Drawing is some number of balls of each colour
-type Drawing = Map[Colour, Int]
+type Coord = (Int, Int)
+type CoordRange = (Coord, Coord)
+type PartNumber = (Int, CoordRange)
 
-// A game has an Id and some number of drawings
-type Game = (Int, Seq[Drawing])
+def isAdjacent(coord:Coord, range:CoordRange):Boolean = 
+    val ((minX, minY), (maxX, maxY)) = range
+    val (x, y) = coord
+    x >= minX - 1 && x <= maxX && y >= minY - 1 && y <= maxY
 
-// How many balls of each colour exist
-def ballCount = Map(
-    Colour.Red -> 12, Colour.Green -> 13, Colour.Blue -> 14
-)
+// A regex to capture numbers in lines
+val number = raw"(\d+)".r
 
-// A game is a game id, followed by text
-val game = raw"Game (\d*):(.*)".r
+// Assume symbols are not letters, digits, or dots or spaces
+def symbolCoordinates(lines:Seq[String]):Seq[Coord] = 
+    for 
+        (line, y) <- lines.zipWithIndex
+        (ch, x) <- line.zipWithIndex if !ch.isDigit && !ch.isLetter && (!". ".contains(ch)) 
+    yield (x, y)   
 
-// Regexes that capture the number of balls drawn for each colour
-val red = raw"(\d*) red".r
-val green = raw"(\d*) green".r
-val blue = raw"(\d*) blue".r
-
-// This comes out compact and readable, though it is a mix of techniques:
-// The game regex includes its colon (and captures the remainder of the string)
-// For the drawings, though, we manually split on ';' and ',' before using the colour regexes
-def lineToGame(s:String):Game = s match {
-    case game(id, text) => id.toInt -> (
-        for drawingText <- text.split(";").toSeq
-        yield
-            drawingText.split(",").toSeq.map(_.trim).map({
-                case red(n) => Colour.Red -> n.toInt
-                case green(n) => Colour.Green -> n.toInt
-                case blue(n) => Colour.Blue -> n.toInt
-            }).toMap
-    )
-}
-
-// A game is valid if for all its drawings, for every colour the number of balls drawn is <= how many of that colour there are
-def isValid(g:Game):Boolean = 
-    val (_, drawings) = g
-    drawings.forall { d =>
-        Colour.values.forall { c =>
-            d.getOrElse(c, 0) <= ballCount(c)
-        }
-    }
-
-// We need the minimum number of each colour of ball that would make the game valid, multiplied together
-def minimumPower(g:Game):Int =
-    val (_, drawings) = g
-    (for c <- Colour.values.toSeq yield drawings.map((d) => d.getOrElse(c, 0)).max).product
+// I'm not a big fan of MatchIterator not being an Iterator of matches (it's an iterator of Strings) but oh well
+def numbersInLine(y:Int, line:String):Seq[PartNumber] = 
+    val found = scala.collection.mutable.Buffer.empty[PartNumber]
+    val mi = number.findAllIn(line)
+    if !mi.isEmpty then
+        while mi.hasNext do
+            val num = mi.next()
+            found.append((num.toInt, ((mi.start, y), (mi.end, y + 1))))
+    println(found.toSeq)
+    found.toSeq
+            
+        
 
 @main def main() = 
-    val lines = Source.fromFile("input.txt").getLines()
-    val games = lines.map(lineToGame).toSeq
-    val minPowers = games.map(minimumPower)
-    println(minPowers)
-    println(s"Sum of minimum powers is ${minPowers.sum}")
+    val lines = Source.fromFile("input.txt").getLines().toSeq
+    val symbolCoords = symbolCoordinates(lines)
+    println(symbolCoords)
+
+    println("""
+
+    ---
+    
+    """)
+    val partNumbers = for 
+        (line, y) <- lines.zipWithIndex 
+        (pn, range) <- numbersInLine(y, line.trim()) if symbolCoords.exists((c) => isAdjacent(c, range))
+    yield pn
+    println(partNumbers)
+    println(partNumbers.length)
+    val sum = partNumbers.sum
+    println(s"Sum of part numbers is ${sum}")
 
