@@ -1,5 +1,9 @@
 import scala.io.*
 
+// This is the solution for part 2
+// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star3/solver.scala
+// (or select the "star3" branch from GitHub)
+
 // The colours of the balls
 enum Colour:
     case Red, Green, Blue
@@ -18,10 +22,14 @@ def ballCount = Map(
 // A game is a game id, followed by text
 val game = raw"Game (\d*):(.*)".r
 
+// Regexes that capture the number of balls drawn for each colour
 val red = raw"(\d*) red".r
 val green = raw"(\d*) green".r
 val blue = raw"(\d*) blue".r
 
+// This comes out compact and readable, though it is a mix of techniques:
+// The game regex includes its colon (and captures the remainder of the string)
+// For the drawings, though, we manually split on ';' and ',' before using the colour regexes
 def lineToGame(s:String):Game = s match {
     case game(id, text) => id.toInt -> (
         for drawingText <- text.split(";").toSeq
