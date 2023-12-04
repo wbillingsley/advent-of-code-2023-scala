@@ -29,7 +29,7 @@ case class Card(num:Int, winning:Seq[Int], have:Seq[Int])(cards: => Seq[Card]) {
     // This is a little like Fibonacci -- the value of the next one in the sequence depends on the previous one.
     // We're going to need some memoization, but we can use a lazy val in each card instead of fold
     lazy val countOfThis:Int =
-        1 + (for n <- (0 until num) if n >= 1 && cards(n).wins.contains(num) yield cards(n).countOfThis).sum
+        1 + (for n <- (1 until num) if cards(n).wins.contains(num) yield cards(n).countOfThis).sum
 
 }
 
