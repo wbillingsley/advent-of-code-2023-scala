@@ -48,17 +48,17 @@ def lineToCard(s:String):Card = {
     }
 }
 
-@tailrec
-def cardCollector(cardMap:Map[Int, Card], done:List[Card], toProcess:Queue[Card]):List[Card] = {
-    if toProcess.isEmpty then done
-    else
-        val (card, remaining) = toProcess.dequeue
-        //println(s"Processing ${card.num} which wins ${card.wins}; done:${done.map(_.num)}; toProcess:${remaining.map(_.num)}")
-        val won = for 
-            n <- card.wins if cardMap.contains(n)
-        yield cardMap(n)
-        cardCollector(cardMap, card :: done, remaining.enqueueAll(won))
-}
+// @tailrec
+// def cardCollector(cardMap:Map[Int, Card], done:List[Card], toProcess:Queue[Card]):List[Card] = {
+//     if toProcess.isEmpty then done
+//     else
+//         val (card, remaining) = toProcess.dequeue
+//         //println(s"Processing ${card.num} which wins ${card.wins}; done:${done.map(_.num)}; toProcess:${remaining.map(_.num)}")
+//         val won = for 
+//             n <- card.wins if cardMap.contains(n)
+//         yield cardMap(n)
+//         cardCollector(cardMap, card :: done, remaining.enqueueAll(won))
+// }
 
 // A faster way that does it more like the text in the example...
 // It doesn't re-process the "won" cards, just runs left-to-right calculating the count of each that's been won
