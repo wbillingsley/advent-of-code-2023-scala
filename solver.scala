@@ -12,15 +12,9 @@ val card = raw"Card\s+(\d+): (.*)".r
 
 // I still had this left from yesterday, so let's just modify it
 def numbersInText(line:String):Seq[Int] = 
-    val found = scala.collection.mutable.Buffer.empty[Int]
-    val mi = number.findAllIn(line)
-    if !mi.isEmpty then
-        while mi.hasNext do
-            val num = mi.next()
-            found.append(num.toInt)
-    found.toSeq
+    number.findAllIn(line).map(_.toInt).toSeq
 
-case class Card(num:Int, winning:Seq[Int], have:Seq[Int]) {
+case class Card(num:Int, winning:Seq[Int], have:Seq[Int])(cards: => Seq[Card]) {
 
     def matching = have.count(winning.contains)
 
@@ -32,15 +26,18 @@ case class Card(num:Int, winning:Seq[Int], have:Seq[Int]) {
     // Let's keep track of which cards we win from this card
     lazy val wins:Seq[Int] = Range(num + 1, num + 1 + matching).toSeq
 
+    lazy val countOfThis:Int =
+        1 + (for n <- (num - 5 until num) if cards.indices.contains(n) && cards(n).wins.contains(num) yield cards(n).countOfThis).sum
+
 }
 
-def lineToCard(s:String):Card = {
+def lineToCard(s:String)(getCards: => Seq[Card]):Card = {
     s match {
         case card(id, text) => 
             val Seq(winningText, haveText) = text.split('|').toSeq
             val winning = numbersInText(winningText)
             val have = numbersInText(haveText)
-            Card(id.toInt, winning, have)
+            Card(id.toInt, winning, have)(getCards)
 
         case x => 
             println(s"Unmatched $x")
@@ -48,35 +45,14 @@ def lineToCard(s:String):Card = {
     }
 }
 
-// @tailrec
-// def cardCollector(cardMap:Map[Int, Card], done:List[Card], toProcess:Queue[Card]):List[Card] = {
-//     if toProcess.isEmpty then done
-//     else
-//         val (card, remaining) = toProcess.dequeue
-//         //println(s"Processing ${card.num} which wins ${card.wins}; done:${done.map(_.num)}; toProcess:${remaining.map(_.num)}")
-//         val won = for 
-//             n <- card.wins if cardMap.contains(n)
-//         yield cardMap(n)
-//         cardCollector(cardMap, card :: done, remaining.enqueueAll(won))
-// }
-
-// A faster way that does it more like the text in the example...
-// It doesn't re-process the "won" cards, just runs left-to-right calculating the count of each that's been won
-def cardCounter(cards:Seq[Card], cardMap:Map[Int, Card]):Int =
-    val initialCount = (for c <- cards yield c.num -> 1).toMap
-    val endCounts = cards.foldLeft(initialCount) { (cardCount, card) =>
-        val countOfThis = cardCount(card.num)
-        val update = for n <- card.wins if cardMap.contains(n) yield n -> (cardCount(n) + countOfThis)
-        cardCount ++ update
-    } 
-    endCounts.values.sum
-
-
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
-    val cards = lines.map(lineToCard)
-    val cardMap = cards.map((c) => c.num -> c).toMap
+    lazy val cards:Seq[Card] = Card(0, Nil, Nil)(cards) +: lines.map(lineToCard(_)(cards))
+    for c <- cards do
+        println(s"Card ${c.num} wins ${c.wins}")
+    
+
     //val won = cardCollector(cardMap, Nil, Queue(cards*))
-    println(s"Won ${cardCounter(cards, cardMap)} cards")
+    println(s"Won ${cards.map(_.countOfThis).sum} cards")
     
 
