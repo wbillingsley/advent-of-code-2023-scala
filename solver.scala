@@ -2,11 +2,9 @@ import scala.io.*
 import scala.collection.immutable.Queue
 import scala.annotation.tailrec
 
-
-
 // This is the solution for part 2
-// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star5/solver.scala
-// (or select the "star5" branch from GitHub)
+// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star7/solver.scala
+// (or select the "star7" branch from GitHub)
 
 // A regex to capture numbers in lines
 val number = raw"(\d+)".r
@@ -26,6 +24,7 @@ case class Card(num:Int, winning:Seq[Int], have:Seq[Int]) {
 
     def matching = have.count(winning.contains)
 
+    //No such thing as score any more
     //lazy val score:Int = if matching > 0 then 
     //    Math.pow(2, matching - 1).toInt
     //else 0
