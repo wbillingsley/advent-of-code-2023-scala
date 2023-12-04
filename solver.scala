@@ -60,11 +60,23 @@ def cardCollector(cardMap:Map[Int, Card], done:List[Card], toProcess:Queue[Card]
         cardCollector(cardMap, card :: done, remaining.enqueueAll(won))
 }
 
+// A faster way that does it more like the text in the example...
+// It doesn't re-process the "won" cards, just runs left-to-right calculating the count of each that's been won
+def cardCounter(cards:Seq[Card], cardMap:Map[Int, Card]):Int =
+    val initialCount = (for c <- cards yield c.num -> 1).toMap
+    val endCounts = cards.foldLeft(initialCount) { (cardCount, card) =>
+        val countOfThis = cardCount(card.num)
+        val update = for n <- card.wins if cardMap.contains(n) yield n -> (cardCount(n) + countOfThis)
+        cardCount ++ update
+    } 
+    endCounts.values.sum
+
+
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
     val cards = lines.map(lineToCard)
     val cardMap = cards.map((c) => c.num -> c).toMap
-    val won = cardCollector(cardMap, Nil, Queue(cards*))
-    println(s"Won ${won.length} cards")
+    //val won = cardCollector(cardMap, Nil, Queue(cards*))
+    println(s"Won ${cardCounter(cards, cardMap)} cards")
     
 
