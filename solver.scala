@@ -26,6 +26,8 @@ case class Card(num:Int, winning:Seq[Int], have:Seq[Int])(cards: => Seq[Card]) {
     // Let's keep track of which cards we win from this card
     lazy val wins:Seq[Int] = Range(num + 1, num + 1 + matching).toSeq
 
+    // This is a little like Fibonacci -- the value of the next one in the sequence depends on the previous one.
+    // We're going to need some memoization, but we can use a lazy val in each card instead of fold
     lazy val countOfThis:Int =
         1 + (for n <- (0 until num) if n >= 1 && cards(n).wins.contains(num) yield cards(n).countOfThis).sum
 
@@ -48,8 +50,8 @@ def lineToCard(s:String)(getCards: => Seq[Card]):Card = {
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
     lazy val cards:Seq[Card] = Card(0, Nil, Nil)(cards) +: lines.map(lineToCard(_)(cards))
-    for c <- cards if c.num >= 1 do
-        println(s"Card ${c.num} occurs ${c.countOfThis} times and wins ${c.wins}")
+    // for c <- cards if c.num >= 1 do
+    //     println(s"Card ${c.num} occurs ${c.countOfThis} times and wins ${c.wins}")
     
 
     //val won = cardCollector(cardMap, Nil, Queue(cards*))
