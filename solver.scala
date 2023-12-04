@@ -27,7 +27,7 @@ case class Card(num:Int, winning:Seq[Int], have:Seq[Int])(cards: => Seq[Card]) {
     lazy val wins:Seq[Int] = Range(num + 1, num + 1 + matching).toSeq
 
     lazy val countOfThis:Int =
-        1 + (for n <- (num - 5 until num) if cards.indices.contains(n) && cards(n).wins.contains(num) yield cards(n).countOfThis).sum
+        1 + (for n <- (0 until num) if n >= 1 && cards(n).wins.contains(num) yield cards(n).countOfThis).sum
 
 }
 
@@ -48,11 +48,11 @@ def lineToCard(s:String)(getCards: => Seq[Card]):Card = {
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
     lazy val cards:Seq[Card] = Card(0, Nil, Nil)(cards) +: lines.map(lineToCard(_)(cards))
-    for c <- cards do
-        println(s"Card ${c.num} wins ${c.wins}")
+    for c <- cards if c.num >= 1 do
+        println(s"Card ${c.num} occurs ${c.countOfThis} times and wins ${c.wins}")
     
 
     //val won = cardCollector(cardMap, Nil, Queue(cards*))
-    println(s"Won ${cards.map(_.countOfThis).sum} cards")
+    println(s"Won ${cards.tail.map(_.countOfThis).sum} cards")
     
 
