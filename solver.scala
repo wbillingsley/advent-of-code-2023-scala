@@ -157,7 +157,7 @@ class Mapper(val from:String, val to:String) {
 
 
 @main def main() = 
-    val lines = Source.fromFile("input.txt").getLines().toSeq
+    val lines = Source.fromFile("test.txt").getLines().toSeq
 
     // let's read this one in mutably.
 
