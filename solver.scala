@@ -16,14 +16,34 @@ val mapRegex = raw"(\w+)-to-(\w+) map:".r
 // We'll use this to read the data in. Then we'll work with it.
 import scala.collection.mutable
 
+case class Mapping(sourceStart:Long, destStart:Long, length:Long) {
+    def sourceIncludes(n:Long):Boolean = 
+        n >= sourceStart && n < sourceStart + length
+
+    def destIncludes(n:Long):Boolean = 
+        n >= destStart && n < destStart + length
+
+    def dest(source:Long):Long = 
+        source - sourceStart + destStart
+}
+
+class Mapper(from:String, to:String) {
+    private val mappings = mutable.Buffer.empty[Mapping]
+
+    def addMapping(m:Mapping):Unit = 
+        mappings.append(m)
+
+
+}
+
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
 
     // let's read this one in mutably
 
     var seeds = Seq.empty[Long]
-    var maps = mutable.Map.empty[(String, String), mutable.Map[Long, Long]]
-    var currentMap:Option[mutable.Map[Long, Long]] = None
+    var maps = mutable.Map.empty[(String, String), Mapper]
+    var currentMapper:Option[Mapper] = None
 
     lines.foreach {
         case seedsRegex(numbers) => 
@@ -31,14 +51,17 @@ import scala.collection.mutable
             println(s"Seeds are $seeds")
         case mapRegex(from, to) => 
             println(s"Found map from $from to $to")
-            val m = mutable.Map.empty[Long, Long]
+            val m = Mapper(from, to)
             maps((from, to)) = m
-            currentMap = Some(m)
+            currentMapper = Some(m)
         case s if s.isBlank() => 
             ()
         case s => 
-            val numbers = s.split(' ').map(_.trim).map(_.toLong).toSeq
-            println(numbers)
+            val Array(destStart, sourceStart, length) = s.split(' ').map(_.trim).map(_.toLong)
+            for m <- currentMapper do
+                val mapping = Mapping(sourceStart, destStart, length)
+                println(mapping)
+                m.addMapping(mapping)
 
     } 
 
