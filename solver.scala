@@ -22,44 +22,65 @@ val mappingSuccession = nouns.zip(nouns.tail)
 // We'll use this to read the data in. Then we'll work with it.
 import scala.collection.mutable
 
+type LongRange = scala.collection.immutable.NumericRange[Long]
 
-// The Scala API's ranges only take lengths as Ints. Oh well, let's write our own
-class LongRange(s:Long, e:Long) {
-
-    def start = s
-
-    def isEmpty:Boolean = e <= start
-
-    def contains(l:Long):Boolean = l >= start && l < exclEnd
-
-    def intersects(r:LongRange):Boolean = 
-        Math.max(start, r.start) < Math.min(exclEnd, r.exclEnd)
-
-    def length = if isEmpty then 0L else e - start
-
-    def exclEnd = if isEmpty then start else e
-
-    def shifted(i:Long) = LongRange(s + i, e + i)
-
-    def take(length:Long) = LongRange(s, Math.min(exclEnd, s + length))
-
-    def drop(length:Long) = LongRange(Math.min(exclEnd, s + length), exclEnd)
-
-    def takeRight(length:Long) = LongRange(Math.max(s, exclEnd - length), exclEnd)
-
-    def intersect(r:LongRange):(LongRange, LongRange, LongRange) = 
-        val overlapStart = Math.max(start, r.start)
-        val overlapEnd = Math.min(exclEnd, r.exclEnd)
+extension (r1:LongRange) {
+    def clip(r2:LongRange):(LongRange, LongRange, LongRange) = {
+        val overlapStart = Math.max(r1.start, r2.start)
+        val overlapEnd = Math.min(r1.end, r2.end)
 
         (
-            LongRange(start, overlapStart), // untransformed "before" fragment
-            LongRange(overlapStart, overlapEnd), // transformed middle
-            LongRange(overlapEnd, exclEnd) // untransformed "after" fragment
+            Range.Long(r1.start, overlapStart, 1), // untransformed "before" fragment
+            Range.Long(overlapStart, overlapEnd, 1), // overlap
+            Range.Long(overlapEnd, r1.end, 1) // untransformed "after" fragment
         )
+    }
 
-    override def toString = s"[$start, $exclEnd)"
+    def clips(r2:LongRange) = 
+        Math.max(r1.start, r2.start) < Math.min(r1.end, r2.end)
+
+    def shifted(delta:Long) = 
+        Range.Long(r1.start + delta, r1.end + delta, 1)
 
 }
+
+// The Scala API's ranges only take lengths as Ints. Oh well, let's write our own
+// class LongRange(s:Long, e:Long) {
+
+//     def start = s
+
+//     def isEmpty:Boolean = e <= start
+
+//     def contains(l:Long):Boolean = l >= start && l < exclEnd
+
+//     def intersects(r:LongRange):Boolean = 
+//         Math.max(start, r.start) < Math.min(exclEnd, r.exclEnd)
+
+//     def length = if isEmpty then 0L else e - start
+
+//     def exclEnd = if isEmpty then start else e
+
+//     def shifted(i:Long) = LongRange(s + i, e + i)
+
+//     def take(length:Long) = LongRange(s, Math.min(exclEnd, s + length))
+
+//     def drop(length:Long) = LongRange(Math.min(exclEnd, s + length), exclEnd)
+
+//     def takeRight(length:Long) = LongRange(Math.max(s, exclEnd - length), exclEnd)
+
+//     def intersect(r:LongRange):(LongRange, LongRange, LongRange) = 
+//         val overlapStart = Math.max(start, r.start)
+//         val overlapEnd = Math.min(exclEnd, r.exclEnd)
+
+//         (
+//             LongRange(start, overlapStart), // untransformed "before" fragment
+//             LongRange(overlapStart, overlapEnd), // transformed middle
+//             LongRange(overlapEnd, exclEnd) // untransformed "after" fragment
+//         )
+
+//     override def toString = s"[$start, $exclEnd)"
+
+// }
 
 
 case class Mapping(from:LongRange, delta:Long) {
@@ -67,11 +88,13 @@ case class Mapping(from:LongRange, delta:Long) {
 
     def to = from.shifted(delta)
 
-    def take(length:Long) = Mapping(from.take(length), delta)
+    def take(length:Long) = Mapping(from.take(length.toInt), delta)
 
-    def takeRight(length:Long) = Mapping(from.takeRight(length), delta)
+    def takeRight(length:Long) = 
+        val drop = Math.max(from.length - length, 0)
+        Mapping(from.drop(drop.toInt), delta)
 
-    def drop(length:Long) = Mapping(from.drop(length), delta)
+    def drop(length:Long) = Mapping(from.drop(length.toInt), delta)
     
     def shifted(d:Long) = Mapping(from, delta + d)
      
@@ -79,7 +102,7 @@ case class Mapping(from:LongRange, delta:Long) {
         if contains(n) then n + delta else throw IllegalArgumentException(s"$from until $to doesn't contain $n")
 
     def transform(r:LongRange):(LongRange, LongRange, LongRange) = {
-        val (before, overlap, after) = r.intersect(from)
+        val (before, overlap, after) = r.clip(from)
 
         (before, overlap.shifted(delta), after)
     }
@@ -101,7 +124,8 @@ class Mapper(val from:String, val to:String) {
     private val _mappings = mutable.Buffer.empty[Mapping]
 
     def addMapping(m:Mapping):Unit = 
-        _mappings.append(m)
+        if !m.from.isEmpty then 
+            _mappings.append(m) 
 
     def mappings = _mappings.toSeq.sortBy(_.from.start)
 
@@ -117,14 +141,14 @@ class Mapper(val from:String, val to:String) {
             m <- {
                 println(s"found mapping $i; last is $last")
                 if i.from.start == last then 
-                    last = i.from.exclEnd
+                    last = i.from.end
                     Seq.empty
                 else
                     println(s"filling a blank from $last to ${i.from.start}") 
-                    last = i.from.exclEnd
-                    Seq(Mapping(LongRange(last, i.from.start), 0))
+                    last = i.from.end
+                    Seq(Mapping(Range.Long(last, i.from.start, 1), 0))
             }
-        yield m) :+ Mapping(LongRange(last, Long.MaxValue), 0)
+        yield m) :+ Mapping(Range.Long(last, Long.MaxValue, 1), 0)
 
         for m <- fill do addMapping(m)
 
@@ -136,13 +160,14 @@ class Mapper(val from:String, val to:String) {
         val result = Mapper(m.from, to)
 
         for section <- m.mappings do
-            val intersections = mappings.filter(_.from.intersects(section.from)).sortBy(_.from.start)
-            intersections.foldLeft(section) { case (remaining, transform) => 
+            val intersections = mappings.filter(_.from.clips(section.to)).sortBy(_.from.start)
+            val last = intersections.foldLeft(section) { case (remaining, transform) => 
                 val (b, o, a) = transform.transformMapping(remaining)
-                if !b.from.isEmpty then result.addMapping(b)
-                if !o.from.isEmpty then result.addMapping(o)
+                result.addMapping(b)
+                result.addMapping(o)
                 a
             }
+            result.addMapping(last)
 
         result
 
@@ -157,7 +182,7 @@ class Mapper(val from:String, val to:String) {
 
 
 @main def main() = 
-    val lines = Source.fromFile("test.txt").getLines().toSeq
+    val lines = Source.fromFile("input.txt").getLines().toSeq
 
     // let's read this one in mutably.
 
@@ -185,14 +210,14 @@ class Mapper(val from:String, val to:String) {
         case s => 
             val Array(destStart, sourceStart, length) = s.split(' ').map(_.trim).map(_.toLong)
             for m <- currentMapper do
-                val mapping = Mapping(LongRange(sourceStart, sourceStart + length), destStart - sourceStart)
+                val mapping = Mapping(Range.Long(sourceStart, sourceStart + length, 1), destStart - sourceStart)
                 m.addMapping(mapping)
 
     } 
 
     val identityMapper = Mapper("seed", "seed")
     for Seq(start, range) <- seeds.grouped(2) do
-        identityMapper.addMapping(Mapping(LongRange(start, start + range), 0))
+        identityMapper.addMapping(Mapping(Range.Long(start, start + range, 1), 0))
 
     println(identityMapper)
 
