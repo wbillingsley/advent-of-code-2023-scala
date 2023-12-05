@@ -83,13 +83,27 @@ class Mapper(val from:String, val to:String) {
 
     } 
 
-    val locs = for s <- seeds yield
-        mappingSuccession.foldLeft(s) { case (number, (from, to)) =>
-            val m = maps((from, to))
-            m.get(number)
-        }
+    var min = Long.MaxValue
+    var cursor = seeds.toList
+    while 
+        val start :: length :: tail = cursor : @unchecked
+        cursor = tail
+        println(s"trying range $start to ${start + length}")
+        
+        for 
+            s <- start until start + length
+        do
+            val l = mappingSuccession.foldLeft(s) { case (number, (from, to)) =>
+                val m = maps((from, to))
+                m.get(number)
+            }
+            if l < min then 
+                println(s"New minimum $l")
+                min = l
 
-    println(s"Lowest was ${locs.min}")
+        !cursor.isEmpty
+    do ()
+
 
 
 
