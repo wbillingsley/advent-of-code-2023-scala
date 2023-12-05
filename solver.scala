@@ -13,6 +13,12 @@ val card = raw"Card\s+(\d+): (.*)".r
 val seedsRegex = raw"seeds: (.*)".r
 val mapRegex = raw"(\w+)-to-(\w+) map:".r
 
+// Turns out all the nouns are fixed, in this order.
+val nouns = Seq("seed", "soil", "fertilizer", "water", "light", "temperature", "humidity", "location")
+
+// We can therefore run through the conversions we need by zipping with the tail
+val mappingSuccession = nouns.zip(nouns.tail)
+
 // We'll use this to read the data in. Then we'll work with it.
 import scala.collection.mutable
 
@@ -39,8 +45,8 @@ class Mapper(val from:String, val to:String) {
     def sourceContains(n:Long):Boolean =
         mappings.exists((m) => m.sourceIncludes(n))
 
-    def get(n:Long):Option[Long] = 
-        mappings.find(_.sourceIncludes(n)).map(_.dest(n))
+    def get(n:Long):Long = 
+        mappings.find(_.sourceIncludes(n)).map(_.dest(n)).getOrElse(n)
 
 
 }
@@ -77,48 +83,15 @@ class Mapper(val from:String, val to:String) {
 
     } 
 
-    // Let's do this the sneaky mutable way.
-    // ensure there is a mapping from everything to everything
-    for 
-        from <- nouns
-        to <- nouns if to != from && !maps.contains((from, to))
-    do
-        maps((from, to)) = Mapper(from, to)
+    val locs = for s <- seeds yield
+        mappingSuccession.foldLeft(s) { case (number, (from, to)) =>
+            val m = maps((from, to))
+            m.get(number)
+        }
+
+    println(s"Lowest was ${locs.min}")
 
 
-    // Given a mapping, updates everything else it can possibly know
-    def transitivelyUpdateMapping(m:Mapper, source:Long, dest:Long):Unit = {
-        //if !m.sourceContains(source) then
-            m.addMapping(Mapping(source, dest, 1))
-
-            println()
-
-            for 
-                transitiveMap <- maps.values.filter(_.from == m.to)
-                inferredDest <- transitiveMap.get(dest)
-            do
-                println(s"Also transitively mapping from ${m.from} $source to ${transitiveMap.to} $inferredDest")
-                transitivelyUpdateMapping(maps((m.from, transitiveMap.to)), source, inferredDest)
-    }
-
-    val seedMaps:Map[String, Mapper] = (for n <- nouns.toSeq if n != "seed" yield
-        val map = maps.getOrElse(("seed", n), Mapper("seed", n))
-        n -> map).toMap
-
-    val locationMap = seedMaps("location")
-
-
-    for s <- seeds do 
-        for 
-            m <- seedMaps.values 
-            d <- m.get(s)
-        do 
-            println(s"Found seed map from $s to ${m.to} $d")
-            // hacky 
-            transitivelyUpdateMapping(m, s, d)
-
-    //for s <- seeds do
-    println("Missing:" + seeds.filter((s) => locationMap.get(s).isEmpty)) 
 
 
     
