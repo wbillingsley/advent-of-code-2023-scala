@@ -42,3 +42,6 @@ bin/
 
 # general
 *.class
+
+# don't publish input for AoC
+input.txt
