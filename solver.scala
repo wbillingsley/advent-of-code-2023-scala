@@ -19,9 +19,9 @@ import util.*
 
 
 // How far we travel for a given button push length
-def travelTimes(time:Int) = {
+def travelTimes(time:Long) = {
     for 
-        i <- 0 to time
+        i <- Range.Long(0, time, 1)
     yield 
         i * (time - i)
 }
@@ -31,22 +31,23 @@ def travelTimes(time:Int) = {
     val lines = Source.fromFile("input.txt").getLines().toSeq
 
     // Today's file is short and in a fixed format. Let's just get it in
-    val times = lines(0) match {
-        case timesRegex(text) => 
-            number.findAllIn(text).map(_.toInt).toSeq
+    val time = lines(0) match {
+        case timesRegex(text) =>             
+            number.findFirstIn(text.filter(!_.isWhitespace)).get.toLong
     }
-    val distances = lines(1) match {
+    val distance = lines(1) match {
         case distancesRegex(text) => 
-            number.findAllIn(text).map(_.toInt).toSeq
-    }
-    println(distances)
-
-    def waysToWin(race:Int):Int = {
-        val d = distances(race)
-        travelTimes(times(race)).filter(_ > d).length
+            number.findFirstIn(text.filter(!_.isWhitespace)).get.toLong
     }
 
-    println(distances.indices.map(waysToWin).product)
+    def waysToWin():Int = {
+        val d = distance
+        travelTimes(time).filter(_ > d).length
+    }
+
+    println(waysToWin())
+
+    // println(distances.indices.map(waysToWin).product)
 
 
 
