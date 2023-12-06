@@ -10,14 +10,30 @@ import scala.annotation.tailrec
 val number = raw"(\d+)".r
 val card = raw"Card\s+(\d+): (.*)".r
 
-val seedsRegex = raw"seeds: (.*)".r
-val mapRegex = raw"(\w+)-to-(\w+) map:".r
+val timesRegex = raw"Time: (.*)".r
+val distancesRegex = raw"Distance: (.*)".r
+
+// val mapRegex = raw"(\w+)-to-(\w+) map:".r
 
 import util.* 
 
 @main def main() = 
     val lines = Source.fromFile("test.txt").getLines().toSeq
-    println(Range.Long(1, 3, 1).clips(Range.Long(2, 5, 1)))
+
+    // Today's file is short and in a fixed format. Let's just get it in
+    val times = lines(0) match {
+        case timesRegex(text) => 
+            number.findAllIn(text).map(_.toInt).toSeq
+    }
+    val distances = lines(1) match {
+        case distancesRegex(text) => 
+            number.findAllIn(text).map(_.toInt).toSeq
+    }
+    println(distances)
+
+
+
+
 
 
 
