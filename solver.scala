@@ -18,14 +18,26 @@ val distancesRegex = raw"Distance: (.*)".r
 import util.* 
 
 
-// How far we travel for a given button push length
-def travelTimes(time:Long) = {
-    for 
-        i <- Range.Long(0, time, 1)
-    yield 
-        i * (time - i)
+// A more efficient range-based solution for brute-forcing it
+def wins(time:Long, d:Long) = {
+    Range.Long(0, time, 1).count((i) => i * (time - i) > d )
 }
 
+/// Or there's the maths way --
+
+// If it were continuous, how much of -i ^ 2 + t * i - d > 0
+def continuousSolution(t:Long, d:Long) = Math.sqrt(Math.pow(t, 2) - 4 * d)
+
+// But it's discrete, so we need to find out the number of integers within that part of the curve
+def range(t:Long, d:Long):(Long, Long) =
+    val s = continuousSolution(t, d) // amount of the curve where > d
+    val c = t.toDouble / 2 // centre of curve
+    Math.ceil(c - s/2).toLong -> Math.floor(c + s/2).toLong // inclusive range of integers where it beats d
+
+// Now the wins is just a subtraction
+def mathWins(t:Long, d:Long): Long = 
+    val (a, b) = range(t, d)
+    b - a + 1
 
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
@@ -40,14 +52,8 @@ def travelTimes(time:Long) = {
             number.findFirstIn(text.filter(!_.isWhitespace)).get.toLong
     }
 
-    def waysToWin():Int = {
-        val d = distance
-        travelTimes(time).filter(_ > d).length
-    }
-
-    println(waysToWin())
-
-    // println(distances.indices.map(waysToWin).product)
+    println(wins(time, distance))
+    println(mathWins(time, distance))
 
 
 
