@@ -12,7 +12,7 @@ import math.Ordering.Implicits.seqOrdering
 
 def counts[T](s:Seq[T]) = 
     val c = s.groupBy(identity).values.map(_.length).toSeq
-    c.sortBy(-_).reverse
+    c.sortBy(-_)
 
 def convertedValue(hand:String, cardValues:String):Seq[Int] = 
     hand.map((c) => cardValues.indexOf(c))
