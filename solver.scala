@@ -52,14 +52,15 @@ def handMultiplier(s:Seq[String], count:Int) = {
 def bestHand(s:String) = {
     val count = s.count(_ == 'J')
     val set = handMultiplier(Seq(s), count)
-    Hand(set.maxBy((s) => Hand(s).handValue))
+    val best = set.maxBy((s) => Hand(s).handValue)
+    Hand(s, Some(Hand(best).typ))
 }
 
-case class Hand(s:String) {
+case class Hand(s:String, typeOverride:Option[HandType] = None) {
 
     val grouplengths = s.groupBy(identity).map((c, s) => (c, s.length))
 
-    lazy val typ:HandType = {
+    lazy val typ:HandType = typeOverride.getOrElse({
         if grouplengths.values.max == 5 then FiveOfAKind else 
         if grouplengths.values.max == 4 then FourOfAKind else
         if grouplengths.values.toSeq.contains(3) && grouplengths.values.toSeq.contains(2) then FullHouse else
@@ -67,7 +68,7 @@ case class Hand(s:String) {
         if grouplengths.values.count(_ == 2) == 2 then TwoPair else
         if grouplengths.values.toSeq.contains(2) then OnePair else
         HighCard
-    }
+    })
 
     def fakeFaceValue = s.foldLeft(0) { case (t, c) => t * 16 + cardMap(c) }
 
