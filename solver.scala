@@ -24,7 +24,7 @@ def rawValue(s:String) =
 // Whatever the count sequence was, we should always put all wildcards on the first entry
 def wildCardValue(s:String) = 
     val nj = s.count(_ == 'J')
-    val h :: t = counts(s).toList
+    val h :: t = counts(s.filter(_ != 'J')).toList
     (h + nj :: t) ++ convertedValue(s, part2)
 
 
