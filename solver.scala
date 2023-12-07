@@ -52,14 +52,14 @@ case class Hand(s:String, typeOverride:Option[HandType] = None) {
     def fakeFaceValue = s.foldLeft(0) { case (t, c) => t * 16 + cardMap(c) }
 
     // A filthy hack!
-    def handValue = (16777216 * typ.ordinal) + fakeFaceValue
+    val handValue = (16777216 * typ.ordinal) + fakeFaceValue
 
 }
 
 def decompose(line:String):(Hand, Int) = 
     val s"$hand $bid" = line
     (bestHand(hand), bid.toInt)
- 
+
 
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
