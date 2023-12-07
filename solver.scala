@@ -26,8 +26,9 @@ val distancesRegex = raw"Distance: (.*)".r
 // import util.* 
 
 val cardMap = Seq(
-    'A' -> 14, 'K' -> 13, 'Q' -> 12, 'J' -> 11, 'T' -> 10,
-    '9' -> 9, '8' -> 8, '7' -> 7, '6' -> 6, '5' -> 5, '4' -> 4, '3' -> 3, '2' -> 2
+    'A' -> 14, 'K' -> 13, 'Q' -> 12, 'T' -> 10,
+    '9' -> 9, '8' -> 8, '7' -> 7, '6' -> 6, '5' -> 5, '4' -> 4, '3' -> 3, '2' -> 2, 
+    'J' -> 0, 
 ).toMap
 
 enum HandType:
@@ -35,6 +36,24 @@ enum HandType:
 
 import HandType.*
 
+def replaceJ(s:String):Seq[String] = {
+    if s.contains('J') then 
+        for c <- "AKQT98765432" yield
+            s.replaceFirst("J", "" + c)
+    else Seq(s)
+}
+
+def handMultiplier(s:Seq[String], count:Int) = {
+    var result = s
+    for i <- 0 until count do result = result.flatMap(replaceJ)
+    result
+}
+
+def bestHand(s:String) = {
+    val count = s.count(_ == 'J')
+    val set = handMultiplier(Seq(s), count)
+    Hand(set.maxBy((s) => Hand(s).handValue))
+}
 
 case class Hand(s:String) {
 
@@ -59,8 +78,8 @@ case class Hand(s:String) {
 
 def decompose(line:String):(Hand, Int) = 
     val s"$hand $bid" = line
-    (Hand(hand), bid.toInt)
-
+    (bestHand(hand), bid.toInt)
+ 
 
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
