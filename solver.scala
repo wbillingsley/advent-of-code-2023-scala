@@ -4,16 +4,33 @@
 
 import scala.io.*
 
-val cardMap = Seq(
-    'A' -> 14, 'K' -> 13, 'Q' -> 12, 'T' -> 10,
-    '9' -> 9, '8' -> 8, '7' -> 7, '6' -> 6, '5' -> 5, '4' -> 4, '3' -> 3, '2' -> 2, 
-    'J' -> 0, 
-).toMap
-
 enum HandType:
     case HighCard, OnePair, TwoPair, ThreeOfAKind, FullHouse, FourOfAKind, FiveOfAKind
 
 import HandType.*
+
+def part1 = "23456789TJQKA"
+def part2 = "J23456789TJQKA"
+
+def typeOf(hand:String):HandType = 
+    val grouplengths = hand.groupBy(identity).map((c, str) => str.length).toSeq
+
+    if grouplengths.max == 5 then FiveOfAKind else 
+        if grouplengths.max == 4 then FourOfAKind else
+        if grouplengths.contains(3) && grouplengths.contains(2) then FullHouse else
+        if grouplengths.contains(3) then ThreeOfAKind else
+        if grouplengths.count(_ == 2) == 2 then TwoPair else
+        if grouplengths.contains(2) then OnePair else
+        HighCard
+
+def convertedValue(hand:String, cardValues:String):String = 
+    hand.map((c) => cardValues.indexOf(c).toChar)
+
+def handValue(typ:HandType, s:String, cardValues:String):String = 
+    typ.ordinal.toChar +: convertedValue(s, cardValues)
+
+def rawValueOf(s:String) = 
+    handValue(typeOf(s), s, part1)
 
 def replaceJ(s:String):Seq[String] = {
     if s.contains('J') then 
@@ -31,40 +48,28 @@ def handMultiplier(s:Seq[String], count:Int) = {
 def bestHand(s:String) = {
     val count = s.count(_ == 'J')
     val set = handMultiplier(Seq(s), count)
-    val best = set.maxBy((s) => Hand(s).handValue)
-    Hand(s, Some(Hand(best).typ))
+    set.maxBy[String]((s) => rawValueOf(s))
 }
 
-case class Hand(s:String, typeOverride:Option[HandType] = None) {
+def wildCardValueOf(s:String) =
+    val best = bestHand(s) 
+    handValue(typeOf(best), s, part2)
+    
 
-    val grouplengths = s.groupBy(identity).map((c, s) => (c, s.length))
 
-    lazy val typ:HandType = typeOverride.getOrElse({
-        if grouplengths.values.max == 5 then FiveOfAKind else 
-        if grouplengths.values.max == 4 then FourOfAKind else
-        if grouplengths.values.toSeq.contains(3) && grouplengths.values.toSeq.contains(2) then FullHouse else
-        if grouplengths.values.toSeq.contains(3) then ThreeOfAKind else
-        if grouplengths.values.count(_ == 2) == 2 then TwoPair else
-        if grouplengths.values.toSeq.contains(2) then OnePair else
-        HighCard
-    })
 
-    def fakeFaceValue = s.foldLeft(0) { case (t, c) => t * 16 + cardMap(c) }
 
-    // A filthy hack!
-    val handValue = (16777216 * typ.ordinal) + fakeFaceValue
 
-}
 
-def decompose(line:String):(Hand, Int) = 
+def decompose(line:String):((String, String), Int) = 
     val s"$hand $bid" = line
-    (bestHand(hand), bid.toInt)
+    ((hand, wildCardValueOf(hand)), bid.toInt)
 
 
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
     val pairs = lines.map(decompose)
-    val sorted = pairs.sortBy(_._1.handValue)
+    val sorted = pairs.sortBy({ case ((h, v), bid) => v })
     println(sorted.zipWithIndex.map({ case ((h, b), i) => b * (i + 1) }).sum )
 
     // May be useful to have this to spot crashes if using watch
