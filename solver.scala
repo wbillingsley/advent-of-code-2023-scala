@@ -12,9 +12,15 @@ lazy val primes: LazyList[Int] = 2 #:: LazyList.from(3, 2).filter(isPrime)
 def isPrime(x: Long): Boolean =
   primes.takeWhile(p => p * p <= x).forall(x % _ != 0)
 
-def factors(n:Long) = Range.Long(2, n, 1).filter((p) => n % p == 0)
+//def factors(n:Long) = Range.Long(2, n, 1).filter((p) => n % p == 0)
 
-def primeFactors(n:Long) = factors(n).filter(isPrime)
+def primeFactors(n:Long):List[Long] = 
+    @tailrec def nextFactor(n:Long, found:List[Long]):List[Long] = 
+        if n == 1 then found else
+            val p = primes.find(n % _ == 0).get
+            nextFactor(n / p, p :: found)
+
+    nextFactor(n, Nil)
 
 def primesFactorsIn(s:Seq[Long]) = for 
     l <- s
@@ -24,6 +30,10 @@ yield
 
 def lcm(s:Seq[Long]) = primesFactorsIn(s).toSet.toSeq.product
 
+def coprime(a:Long, b:Long) = 
+    val (gcd, _, _) = extEuclid(a, b)
+    gcd == 1
+
 @tailrec
 def extEuclidR(q:List[Long], r:List[Long], s:List[Long], t:List[Long]):(Long, Long, Long) =
     val qq = r(1) / r(0)
@@ -31,7 +41,7 @@ def extEuclidR(q:List[Long], r:List[Long], s:List[Long], t:List[Long]):(Long, Lo
     val ss = s(1) - qq * s(0)
     val tt = t(1) - qq * t(0) 
 
-    if rr == 0 then (qq, s(0), t(0)) else extEuclidR(qq :: q, rr :: r, ss :: s, tt :: t)
+    if rr == 0 then ((rr :: r).find(_ != 0).get, s(0), t(0)) else extEuclidR(qq :: q, rr :: r, ss :: s, tt :: t)
 
 
 def extEuclid(a:Long, b:Long) = extEuclidR(Nil, List(a, b), List(1, 0), List(0, 1))
@@ -41,6 +51,25 @@ def extEuclid(a:Long, b:Long) = extEuclidR(Nil, List(a, b), List(1, 0), List(0, 
 // So we have to keep the current state of the instructions
 type Step = (String, String)
 
+
+// Solve x = a1 (mod n1) = a2 (mod n2) exhaustively
+def sieve(a1:Long, n1:Long, a2:Long, n2:Long):Long = 
+    println(s"Solving x = $a1 (mod $n1) = $a2 (mod $n2)")
+    if coprime(n1, n2) then 
+        println("Coprime! Using constructive existence proof")
+        val (q, m1, m2) = extEuclid(n1, n2)
+        val r = a1 * m2 * n2 + a2 * m1 * n1
+        println(s"Got $r")
+        r
+    else 
+        throw IllegalArgumentException("There's not necessarily a solution in the non-coprime case")
+
+def solveCongruences(seq:Seq[(Long, Long)]) = 
+    seq.reduce { case ((a1, n1), (a2, n2)) => 
+        val x = sieve(a1, n1, a2, n2)
+        
+        (x, n1 * n2)
+    }
 
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
@@ -63,18 +92,14 @@ type Step = (String, String)
 
         def hasLooped = steps.nonEmpty && steps.tail.contains(steps.head)
 
-        lazy val loopLength = loop.map(_.length - 1).getOrElse(-1)
+        lazy val loopLength = loop._2
 
         lazy val lengthBeforeLoop:Int = 
             steps.length - loopLength
 
-        lazy val loop:Option[List[Step]] = 
-            var found:Option[List[Step]] = None
-            var cursor = steps
-            while found.isEmpty && cursor.nonEmpty do
-                if cursor.tail.contains(cursor.head) then 
-                    found = Some(cursor)
-            found
+        lazy val loop:(Int, Int) = 
+            (0, steps.tail.indexOf(steps.head) + 1)
+            
 
         @tailrec
         final def navigateUntil(p:Path => Boolean):Path = {
@@ -91,12 +116,6 @@ type Step = (String, String)
     }
 
 
-    // x == 19951 (mod 19953) and x == 20513 (mod 20515)
-    val (x, y) = (15, 69)
-    val (q, s, t) = extEuclid(x, y)
-    println(s"$q $s $t")
-    println(s * x + t * y)
-
     val startNodes = network.keys.toSeq.filter(_.endsWith("A"))
     val starts = for s <- startNodes yield Path(List(s -> instructions0))
     
@@ -112,67 +131,18 @@ type Step = (String, String)
 
     println(s"Z-lengths are $zLengths, with lcm ${lcm(zLengths)}")
 
-    for l <- zLengths do 
-        println(s"$l has prime factors ${primeFactors(l)}")
+    // Ok, at this point, it should be apparent that the loop lengths and the z-lengths are identical.
+    // The loop lengths (if you take their factors) also have the length of the instructions as a factor
+    // This all looks carefully designed so that each path with land on Z with a constant period (including the first time)
 
-    println(s"Lead in lengths = ${loops.map(_.lengthBeforeLoop)}")
+    // For a while, I thought I was "lucky" that LCM worked, as it doesn't necessarily have to work for any P-shaped path,
+    // But actually it looks like the puzzlers had to set it up this way in order to make it tractably solvable.
+    // The instruction length has to be a factor of the loop length (as the state of a step includes the state of its instructions)
+    // That means the loop lengths cannot be coprime
+    // That means CRT-based solutions to solve x = a1 (mod n1) and x = a2 (mod n2) will become unwieldy
+    // So as puzzle-setters, they effectively had to make a1, a2, etc all = 0
+    // In which case, LCM(n1, n2, ...) has to work.
 
-    // s == z1 % l1 == z2 % l2 == z3 % l3
-
-    /*
- 
-        Loop lengths are List(19953, 20515, 22201, 12087, 14895, 13209), with lcm 780238279154060265
-        19953 has prime factors Vector(3, 739)
-        20515 has prime factors Vector(5, 11, 373)
-        22201 has prime factors Vector(149)
-        12087 has prime factors Vector(3, 17, 79)
-        14895 has prime factors Vector(3, 5, 331)
-        13209 has prime factors Vector(3, 7, 17, 37)
-        Z-lengths are List(19951, 20513, 22199, 12083, 14893, 13207), with lcm 12324145107121
-        19951 has prime factors Vector(71, 281)
-        20513 has prime factors Vector(73, 281)
-        22199 has prime factors Vector(79, 281)
-        12083 has prime factors Vector(43, 281)
-        14893 has prime factors Vector(53, 281)
-        13207 has prime factors Vector(47, 281)
-        Lead in lengths = List(1, 1, 1, 1, 1, 1)
-
-    */
-
-
-    /*
-      Pick two that have loop lengths that are pairwise co-prime
-
-      x == 19951 (mod 19953) and x == 20513 (mod 20515)
-
-      Chinese Remainder Theorem 
-
-    */
-
-    // Now, we're going to pick the first loop
-    val loop = modulos.head
-    val z = zLengths.head
-
-    var guess = z.toLong
-    val zipped = modulos.zip(zLengths)
-    def correct(g:Long) = 
-        zipped.forall((ll, zz) => guess % ll == zz)
-
-    // while 
-    //     println("Trying " + guess)
-    //     !correct(guess)
-    // do guess = loop + guess
-
-    // println("The answer was " + guess )
-
-
-
-
-
-
-
-    // And it worked.
-    // Though if one of the loops had two nodes ending "Z" in it, it probably wouldn't have.
 
 
     
