@@ -3,48 +3,39 @@
 // (or select the "star13" branch from GitHub)
 
 import scala.io.*
+import scala.annotation.tailrec
 
+val directions = "LR"
 
-def part1 = "23456789TJQKA"
-def part2 = "J23456789TJQKA"
-
-import math.Ordering.Implicits.seqOrdering
-
-def counts[T](s:Seq[T]) = 
-    val c = s.groupBy(identity).values.map(_.length).toSeq
-    c.sortBy(-_)
-
-def convertedValue(hand:String, cardValues:String):Seq[Int] = 
-    hand.map((c) => cardValues.indexOf(c))
-
-def rawValue(s:String) = 
-    counts(s) ++ convertedValue(s, part1)
-
-// We don't have to replace the wildcards
-// Whatever the count sequence was, we should always put all wildcards on the first entry
-def wildCardValue(s:String) = 
-    val nj = s.count(_ == 'J')
-    val h :: t = counts(s.filter(_ != 'J')).toList
-    (h + nj :: t) ++ convertedValue(s, part2)
-
-
-def decompose(line:String):(String, Int) = 
-    val s"$hand $bid" = line
-    (hand, bid.toInt)
 
 
 @main def main() = 
-    val lines = Source.fromFile("test.txt").getLines().toSeq
-    val pairs = lines.map(decompose)
+    val lines = Source.fromFile("input.txt").getLines().toSeq
+    val instructions0 = lines(0)
 
-    val part1 = pairs.sortBy((s, _) => rawValue(s)).map((_, b) => b).zipWithIndex.map((a, b) => a * (b + 1)).sum
-    println("Part 1 " + part1)
+    val network = (for 
+        line <- lines.drop(2) 
+    yield 
+        val s"$node = ($left, $right)" = line
+        node -> Seq(left, right)).toMap
 
-    val part2 = pairs.sortBy((s, _) => wildCardValue(s)).map((_, b) => b).zipWithIndex.map((a, b) => a * (b + 1)).sum
-    println("Part 2 " + part2)
+    @tailrec
+    def navigate(from:String, instructions:String, target:String, stepCount:Int = 0):Int = 
+        if from == target then stepCount 
+        else 
+            if instructions.isEmpty() then 
+                navigate(from, instructions0, target, stepCount)
+            else
+                val h = instructions.head
+                
+                val dir = directions.indexOf(h)
+                val newNode:String = network(from)(dir)
+                navigate(newNode, instructions.drop(1), target, stepCount + 1)
 
-    // May be useful to have this to spot crashes if using watch
-    println("Re-ran at: " + java.util.Date().toLocaleString())
+    println(navigate("AAA", instructions0, "ZZZ", 0))
+
+    
+
 
 
 
