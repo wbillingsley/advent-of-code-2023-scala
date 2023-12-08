@@ -1,6 +1,6 @@
 // This is the solution for part 2
-// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star13/solver.scala
-// (or select the "star13" branch from GitHub)
+// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star15/solver.scala
+// (or select the "star15" branch from GitHub)
 
 import scala.io.*
 import scala.annotation.tailrec
@@ -37,6 +37,12 @@ def isPrime(x: Int): Boolean =
 
     val starts = network.keys.toSeq.filter(_.endsWith("A"))
 
+    // Ok, I did a first attempt that tried to brute-force it (running every step simultaneously), but it started to clock up a lot of cycles.
+    // So, we switch to doing this the mathematical way.
+
+    // In fact, I was lucky. The problem does not state that after "**Z" it will loop back to "**A", but I guess it must because my solution worked.
+    // Find the length of the individual loops, and take their least common multiple.
+
     val loopLengths = for s <- starts yield navigate(s, instructions0, "ZZZ", 0)
 
     def factors(n:Int) = (2 until n).filter((p) => n % p == 0)
@@ -52,6 +58,9 @@ def isPrime(x: Int): Boolean =
 
     val lcm = primesInLoopLengths.toSet.toSeq.map(_.toLong).product
     println(lcm)
+
+    // And it worked.
+    // Though if one of the loops had two nodes ending "Z" in it, it probably wouldn't have.
 
 
     
