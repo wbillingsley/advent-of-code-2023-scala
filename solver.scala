@@ -1,6 +1,6 @@
 // This is the solution for part 2
-// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star15/solver.scala
-// (or select the "star15" branch from GitHub)
+// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star17/solver.scala
+// (or select the "star17" branch from GitHub)
 
 import scala.io.*
 import scala.annotation.tailrec
@@ -43,32 +43,12 @@ def prependHistory(diffTable:Seq[Seq[Long]]):Seq[Seq[Long]] = {
         r
 }
 
-def checkHistory(h:Seq[Seq[Long]]):Boolean = {
-    var error = false
-    for Seq(line, next) <- h.sliding(2) yield
-        for i <- next.indices if next(i) != line(i + 1) - line(i) yield
-            println(h)
-            throw new IllegalStateException(s"${line(i + 1)} - ${line(i)} != $next(i)")
-
-    true
-}
-
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
     val histories = lines.map(decompose)
     val differentiated = histories.map(differentiateToZeroes)
 
-    // val nexts = for (s, table) <- differentiated yield 
-    //     val v = nextValue(table)
-    //     println(v)
-    //     v
-    
     val prepended = differentiated.map(prependHistory)
-
-    // println(prepended(0))
-    // for p <- prepended yield 
-    //     println(p.head)
-    //     checkHistory(p)
 
     val firsts = for p <- prepended yield p.last.head
 
