@@ -9,7 +9,7 @@ import util.*
 
 type Line = Seq[Int]
 
-val number = raw"(\d+)".r
+val number = raw"([-\d]+)".r
 
 def decompose(line:String):Seq[Int] = 
     number.findAllIn(line).map(_.toInt).toSeq
@@ -26,10 +26,26 @@ def differentiateToZeroes(s:Seq[Int]):(Int, Seq[Seq[Int]]) =
         cursor = differentiate(cursor.head) :: cursor
     (count, cursor)
 
+def nextValue(diffTable:Seq[Seq[Int]]):Int = {
+    var cursor = 0
+    for i <- diffTable.indices.reverse do
+        cursor = diffTable(i).last + cursor
+    cursor
+
+}
+
 @main def main() = 
-    val lines = Source.fromFile("test.txt").getLines().toSeq
+    val lines = Source.fromFile("input.txt").getLines().toSeq
     val histories = lines.map(decompose)
-    println(differentiateToZeroes(histories.head))
+    val differentiated = histories.map(differentiateToZeroes)
+
+    val nexts = for (s, table) <- differentiated yield nextValue(table)
+    
+
+
+
+
+    println(nexts.sum)
 
 
 
