@@ -56,7 +56,7 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char
         while !q.isEmpty do
             val (loc, d) = q.dequeue()
             val add = check(loc, d)
-            println(add)
+            // println(add)
             q.enqueueAll(add)
     }
 
@@ -82,7 +82,7 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char
         val my = maxY
         for y <- 0 to my do
             for x <- 0 to mx do
-                if distance.contains((x, y)) then print(map((x, y))) else print(" ")
+                if distance.contains((x, y)) then print(distance((x, y))) else print(" ")
             println()
     }
 
@@ -96,7 +96,10 @@ extension (m:Seq[String]) {
 }
 
 @main def main() = 
-    val lines = Source.fromFile("test2.txt").getLines().toSeq
+    val lines = Source.fromFile("input.txt").getLines().toSeq
+
+    val maxY = lines.indices.max
+    val maxX = lines.head.indices.max
 
     val map:Map[Coord, Char] = 
         (for 
@@ -110,33 +113,33 @@ extension (m:Seq[String]) {
     val md = 
         map.map({ case (c, ch) => 
             if ch == 'S' then 
-                println(s"char at $c is ${map(c)}")
-                println(s"ffs ${for d <- all yield d}")
+                // println(s"char at $c is ${map(c)}")
+                // println(s"ffs ${for d <- all yield d}")
                 val surroudingLocs = 
                     for 
                         d <- all if map.contains(c + d) 
                         toHere = {
                             val mm = moveDirections(map(c + d)) 
-                            println(s"Loc ${c + d} ch ${map(c + d)} dir $mm")
+                            // println(s"Loc ${c + d} ch ${map(c + d)} dir $mm")
                             mm
                         } if toHere.contains(d.inverse)
                     yield d
 
-                println(s"From start, I can go $surroudingLocs")
+                // println(s"From start, I can go $surroudingLocs")
                 
                 c -> surroudingLocs
             else c -> moveDirections.getOrElse(ch, Seq.empty)})
         
 
 
-    println(s"Start is $sx $sy")
+    println(s"Start location is $sx $sy")
 
     println(md((sx, sy)))
 
     val j = JellyFlood(md)(map)
-    println("start")
+    println("start forward flood")
     j.flood((sx, sy), 0)
-    println("Done")
+    println("Done forward flood")
 
     val ((endX, endY), maxDistance) = j.maxDistance()
     println(s"Furthest distance is $maxDistance at $endX $endY")
@@ -157,11 +160,30 @@ extension (m:Seq[String]) {
 
     reverseJ.pp()
 
+    val bothDirections = 
+        for (p, v) <- j.distance yield p -> (v + reverseJ.distance(p))
 
-    val loopSquares = 
-        (for (p, v) <- j.distance if v + reverseJ.distance(p) == maxDistance yield p).toSet
+
+    // for (p, sum) <- bothDirections do println(s"$p $sum")
+    
+    // for (p, v) <- j.distance do
+    //     val forward = v
+    //     val back = reverseJ.distance(p)
+    //     println(s"$p is distance ${forward} and ${back} .. ${forward + back}")
+
+    val loopSquares = bothDirections.filter({ case (_, v) => v == maxDistance})
 
 
+    println(loopSquares)
+
+    println("---TRIMMED MAP---")
+
+    for y <- 0 to maxY do
+        for x <- 0 to maxX do
+            if loopSquares.contains((x, y)) then print(map((x, y))) else print(" ")
+        println()
+
+    println()
 
 
     // If we count squares to the left, then if there is an even number of "values" in the distance map, we are not enclosed by the loop.
@@ -169,15 +191,23 @@ extension (m:Seq[String]) {
 
     val notLoopItself = for 
         y <- lines.indices
-        x <- lines(y).indices if !j.distance.contains((x, y))
+        x <- lines(y).indices if !loopSquares.contains((x, y))
     yield (x, y)
 
     println(notLoopItself)
 
     // Use the fact that only reachable squares are in the map at all
-    def countLeft(x:Int, y:Int) = j.distance.count({ case ((xx, yy), _) => y == yy && xx < x})
+    def countLeft(x:Int, y:Int) = loopSquares.count({ case ((xx, yy), _) => y == yy && xx < x})
+    def countRight(x:Int, y:Int) = loopSquares.count({ case ((xx, yy), _) => y == yy && xx > x})
+    def countDown(x:Int, y:Int) = loopSquares.count({ case ((xx, yy), _) => x == xx && yy > y})
+    def countUp(x:Int, y:Int) = loopSquares.count({ case ((xx, yy), _) => x == xx && yy < y})
 
-    println("Odd count lefts : " + notLoopItself.count({ case (x, y) => countLeft(x, y) % 2 == 1 }))
+    println("Odd count lefts : " + notLoopItself.count({ case (x, y) => 
+        countLeft(x, y) % 2 == 1 &&
+        countRight(x, y) % 2 == 1 &&
+        countUp(x, y) % 2 == 1 &&
+        countDown(x, y) % 2 == 1 
+    }))
 
 
 
