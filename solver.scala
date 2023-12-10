@@ -57,7 +57,8 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char
             val (loc, d) = q.dequeue()
             val add = check(loc, d)
             // println(add)
-            q.enqueueAll(add)
+            val filtered = for (p, v) <- add if q.find({ case (pp, _) => pp == p}).isEmpty yield p -> v
+            q.enqueueAll(filtered)
     }
 
     final def check(p:(Int, Int), dist:Int):Seq[(Coord, Int)] = {
@@ -82,7 +83,7 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char
         val my = maxY
         for y <- 0 to my do
             for x <- 0 to mx do
-                if distance.contains((x, y)) then print(distance((x, y))) else print(" ")
+                if distance.contains((x, y)) then print("*") else print(" ")
             println()
     }
 
@@ -96,7 +97,7 @@ extension (m:Seq[String]) {
 }
 
 @main def main() = 
-    val lines = Source.fromFile("input.txt").getLines().toSeq
+    val lines = Source.fromFile("test2.txt").getLines().toSeq
 
     val maxY = lines.indices.max
     val maxX = lines.head.indices.max
@@ -173,9 +174,6 @@ extension (m:Seq[String]) {
 
     val loopSquares = bothDirections.filter({ case (_, v) => v == maxDistance})
 
-
-    println(loopSquares)
-
     println("---TRIMMED MAP---")
 
     for y <- 0 to maxY do
@@ -185,29 +183,45 @@ extension (m:Seq[String]) {
 
     println()
 
+    // Plan B. Flood fill the outside of the map.
 
-    // If we count squares to the left, then if there is an even number of "values" in the distance map, we are not enclosed by the loop.
+    println("Generating the barrier map")
+    val loopAsBarrier = for (p, _) <- map yield 
+        if 
+            loopSquares.contains(p) then p -> Seq.empty 
+        else 
+            p -> (for d <- all if map.contains(p + d) yield d)
+
+    
+    val outsideFill = JellyFlood(loopAsBarrier)(map)
+    println("Flood top")
+    for 
+        x <- 0 to maxX if !loopSquares.contains((x, 0)) && !outsideFill.distance.contains((x, 0)) 
+    do 
+        println(s"Flooding $x 0")
+        outsideFill.flood((x, 0), 0)
+    println("Flood bottom")
+    for x <- 0 to maxX if !loopSquares.contains((x, maxY)) do outsideFill.flood((x, maxY), 0)
+    println("Flood left")
+    for y <- 0 to maxY if !loopSquares.contains((0, y)) do outsideFill.flood((0, y), 0)
+    println("Flood right")
+    for y <- 0 to maxY if !loopSquares.contains((maxX, y)) do outsideFill.flood((maxY, y), 0)
 
 
-    val notLoopItself = for 
-        y <- lines.indices
-        x <- lines(y).indices if !loopSquares.contains((x, y))
+    outsideFill.pp()
+
+    val enclosed = for 
+        y <- 0 to maxY
+        x <- 0 to maxX if !loopSquares.contains((x, y)) && !outsideFill.distance.contains((x, y))
     yield (x, y)
 
-    println(notLoopItself)
+    println("Enclosed: " + enclosed.size)
 
-    // Use the fact that only reachable squares are in the map at all
-    def countLeft(x:Int, y:Int) = loopSquares.count({ case ((xx, yy), _) => y == yy && xx < x})
-    def countRight(x:Int, y:Int) = loopSquares.count({ case ((xx, yy), _) => y == yy && xx > x})
-    def countDown(x:Int, y:Int) = loopSquares.count({ case ((xx, yy), _) => x == xx && yy > y})
-    def countUp(x:Int, y:Int) = loopSquares.count({ case ((xx, yy), _) => x == xx && yy < y})
 
-    println("Odd count lefts : " + notLoopItself.count({ case (x, y) => 
-        countLeft(x, y) % 2 == 1 &&
-        countRight(x, y) % 2 == 1 &&
-        countUp(x, y) % 2 == 1 &&
-        countDown(x, y) % 2 == 1 
-    }))
+
+
+
+
 
 
 
