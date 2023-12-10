@@ -1,5 +1,5 @@
-// This is the solution for part 1
-// For the solution to part 2, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star20/solver.scala
+// This is the solution for part 2
+// For the solution to part 2, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star19/solver.scala
 // (or select the "star20" branch from GitHub)
 
 import scala.io.*
@@ -186,41 +186,14 @@ extension (m:Seq[String]) {
     pp(loopSquares.keySet.toSet)
     println()
 
-    // Let's go back to whether the number of crossings is odd or even. But let's take into account whether you are travelling along a pipe.
+    // Let's go back to whether the number of crossings is odd or even. 
 
-    def canTraverse(pp:Coord, dir:Coord) = 
-        val dest = pp + dir
-        (!loopSquares.contains(pp) && !loopSquares.contains(dest)) || md.getOrElse(pp, Seq.empty).contains(dir)
+    // After much blundering around, I finally thought to switch how I thought about it.
+    // Forget, "how many times does a line cross the loop" (which was causing me hassles with what about when the line runs along the loop)
+    // Try "how many times does the loop cross the line"?
+    // Which is a much simpler case of taking a line eastwards from the point in question, and doing a parity check on how often the loop will let something
+    // go North along that line.
 
-    val whiteSpaceMap = 
-        for 
-            (p, dirs) <- md 
-        yield 
-            if loopSquares.contains(p) then 
-                p -> dirs 
-            else p -> (
-                for 
-                    d <- all 
-                    dest = p + d if !loopSquares.contains(dest) || md(dest).contains(d.inverse)
-
-                    //if !loopSquares.contains(p + d) 
-                yield d
-            )
-
-    def edgeRight(p:Coord) = 
-        map.contains(p) && !whiteSpaceMap(p).contains(East)
-
-    val allEastEdges = for 
-        x <- 0 to maxX
-        y <- 0 to maxY if edgeRight((x, y))
-    yield (x, y)
-
-    pp(allEastEdges.toSet)
-
-    def edgesBefore(p:Coord) = 
-        allEastEdges.count({ case (x, y) => x < p._1 && y == p._2 })
-
-    
     val allSq = for 
         x <- 0 to maxX
         y <- 0 to maxY if !loopSquares.contains((x, y))
@@ -241,18 +214,6 @@ extension (m:Seq[String]) {
     pp(res.toSet)
 
     println(res.size)
-
-
-
-/*def 
-
-((edgesBefore(p)) / 2) % 2 == 1
-
-*/
-
-
-
-
 
     
 
