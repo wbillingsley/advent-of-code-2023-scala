@@ -19,29 +19,35 @@ def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
 type Coord = (Int, Int)
 
 extension (c:Coord) {
-    def +(c2:Coord) = (c._1 + c2._1, c._2 + c2._2)
+    def +(c2:Coord) = 
+        val (x, y) = c
+        val (xx, yy) = c2
+        (xx + x, yy + y)
+
+    def inverse = (-c._1, -c._2)
 }
 
 val North = (0, -1)
 val South = (0, 1)
 val East = (1, 0)
-val West = (0, 1)
+val West = (-1, 0)
 val all = Seq(North, South, East, West)
 
 val moveDirections:Map[Char, Seq[Coord]] = Map(
-    '|' -> Seq((0, -1), (0, 1)),
-    '-' -> Seq((1, 0), (-1, 0)),
-    'L' -> Seq((0, -1), (1, 0)),
-    'J' -> Seq((0, -1), (-1, 0)),
-    '7' -> Seq((-1, 0), (0, 1)),
-    'F' -> Seq((0, 1), (1, 0)),
+    '|' -> Seq(North, South),
+    '-' -> Seq(East, West),
+    'L' -> Seq(North, East),
+    'J' -> Seq(North, West),
+    '7' -> Seq(South, West),
+    'F' -> Seq(South, East),
+    '.' -> Seq.empty,
 )
 
 // Here's one I made earlier
 class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]]) {
     val distance = mutable.Map.empty[(Int, Int), Int]
 
-    def check(p:(Int, Int), dist:Int):Unit = {
+    final def check(p:(Int, Int), dist:Int):Unit = {
         println(s"Checking $p $dist")
         distance(p) = dist
         val (x, y) = p
@@ -79,11 +85,30 @@ extension (m:Seq[String]) {
 
 
     val md = 
-        map.map({ case (c, ch) => if ch == 'S' then c -> all else c -> moveDirections.getOrElse(ch, Seq.empty)})
+        map.map({ case (c, ch) => 
+            if ch == 'S' then 
+                println(s"char at $c is ${map(c)}")
+                println(s"ffs ${for d <- all yield d}")
+                val surroudingLocs = 
+                    for 
+                        d <- all if map.contains(c + d) 
+                        toHere = {
+                            val mm = moveDirections(map(c + d)) 
+                            println(s"Loc ${c + d} ch ${map(c + d)} dir $mm")
+                            mm
+                        } if toHere.contains(d.inverse)
+                    yield d
+
+                println(s"From start, I can go $surroudingLocs")
+                
+                c -> surroudingLocs
+            else c -> moveDirections.getOrElse(ch, Seq.empty)})
         
 
 
     println(s"Start is $sx $sy")
+
+    println(md((sx, sy)))
 
     val j = JellyFlood(md)
     println("start")
