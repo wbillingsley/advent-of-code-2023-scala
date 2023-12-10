@@ -128,6 +128,25 @@ extension (m:Seq[String]) {
 
     println(j.maxDistance())
 
+    // For part 2, we need to count crossings
+    // If we count squares to the left, then if there is an even number of "values" in the distance map, we are not enclosed by the loop.
+
+
+    val notLoopItself = for 
+        y <- lines.indices
+        x <- lines(y).indices if !j.distance.contains((x, y))
+    yield (x, y)
+
+    println(notLoopItself)
+
+    // Use the fact that only reachable squares are in the map at all
+    def countLeft(x:Int, y:Int) = j.distance.count({ case ((xx, yy), _) => y == yy && xx < x})
+
+    println("Odd count lefts : " + notLoopItself.count({ case (x, y) => countLeft(x, y) % 2 == 1 }))
+
+
+
+
     
 
     // May be useful to have this to spot crashes if using watch
