@@ -97,7 +97,7 @@ extension (m:Seq[String]) {
 }
 
 @main def main() = 
-    val lines = Source.fromFile("test2.txt").getLines().toSeq
+    val lines = Source.fromFile("test2a.txt").getLines().toSeq
 
     val maxY = lines.indices.max
     val maxX = lines.head.indices.max
@@ -176,33 +176,61 @@ extension (m:Seq[String]) {
 
     println("---TRIMMED MAP---")
 
-    for y <- 0 to maxY do
-        for x <- 0 to maxX do
-            if loopSquares.contains((x, y)) then print(map((x, y))) else print(" ")
-        println()
+    def pp(locations:Set[Coord]):Unit = 
+        for y <- 0 to maxY do
+            for x <- 0 to maxX do
+                if locations.contains((x, y)) then print(map((x, y))) else print(" ")
+            println()
 
+
+    pp(loopSquares.keySet.toSet)
     println()
 
     // Let's go back to whether the number of crossings is odd or even. But let's take into account whether you are travelling along a pipe.
 
-    def countCrossings(p:Coord):Int =
+    def canTraverse(pp:Coord, dir:Coord) = 
+        val dest = pp + dir
+        (!loopSquares.contains(pp) && !loopSquares.contains(dest)) || md.getOrElse(pp, Seq.empty).contains(dir)
+
+
+    def countCrossings(p:Coord, dir:Coord):Int =
         var count = 0
-        val direction = North
         var cursor = p
-        while cursor._2 > 0 do 
-            if md.getOrElse(cursor, Seq.empty).contains(North) then count = count + 1
-            cursor = cursor + North
+        while map.contains(cursor) do 
+            val dest = cursor + dir
+            if !loopSquares.contains(cursor) && loopSquares.contains(dest) then 
+                count = count + 1
+            else if loopSquares.contains(cursor) && !loopSquares.contains(dest) then 
+                count = count 
+            else if !canTraverse(cursor, dir) then 
+                count = count + 2
+
+            cursor = cursor + dir
 
         count
+
+   //println("Range method")
+    // println(for x <- 13 to maxX if !canTraverse((x, 5), East) yield x)
+
+    println(countCrossings((71, 71), North))
+    println(countCrossings((71, 71), East))
+    println(countCrossings((71, 71), South))
+    println(countCrossings((71, 71), West))
+
+    //def allOddCrossings(p:Coord) = all.forall({ (d) => countCrossings(p, d) % 2 == 1 })
 
     val allSquares = for 
         x <- 0 to maxX
         y <- 0 to maxY
     yield (x, y)
 
-    val odds = for p <- allSquares if !loopSquares.contains(p) && countCrossings(p) % 2 == 1 yield p
+    val odds = for p <- allSquares if !loopSquares.contains(p) && countCrossings(p, East) % 2 != 0 yield p
+
 
     println("Odds " + odds.length)
+
+    pp(odds.toSet)
+
 
 
 
