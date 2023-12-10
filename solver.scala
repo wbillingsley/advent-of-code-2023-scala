@@ -44,9 +44,11 @@ val moveDirections:Map[Char, Seq[Coord]] = Map(
 )
 
 // Here's one I made earlier
-class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]]) {
+class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char]) {
     val distance = mutable.Map.empty[(Int, Int), Int]
 
+    def maxX = distance.keys.map(_._1).max
+    def maxY = distance.keys.map(_._1).max
 
     def flood(p:(Int, Int), dist:Int):Unit = {
         val q = mutable.Queue(p -> dist)
@@ -59,13 +61,14 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]]) {
     }
 
     final def check(p:(Int, Int), dist:Int):Seq[(Coord, Int)] = {
-        println(s"Checking $p $dist")
+        // println(s"Checking $p $dist")
         distance(p) = dist
         val (x, y) = p
 
         for {
             (dx, dy) <- all if (
-            distance.getOrElse(p + (dx, dy), Int.MaxValue) > dist + 1 &&
+            distance.getOrElse(p + (dx, dy), Int.MaxValue) > dist + 1 && 
+                map.contains(p + (dx, dy)) &&
                 allowedDirections.getOrElse(p, Seq.empty).contains((dx, dy))
             )
         } yield (p + (dx, dy), dist + 1)
@@ -73,6 +76,15 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]]) {
 
     def maxDistance() = 
         distance.maxBy({ case ((x, y), d) => d })
+
+    def pp() = {
+        val mx = maxY
+        val my = maxY
+        for y <- 0 to my do
+            for x <- 0 to mx do
+                if distance.contains((x, y)) then print(map((x, y))) else print(" ")
+            println()
+    }
 
 }
 
@@ -84,7 +96,7 @@ extension (m:Seq[String]) {
 }
 
 @main def main() = 
-    val lines = Source.fromFile("input.txt").getLines().toSeq
+    val lines = Source.fromFile("test2.txt").getLines().toSeq
 
     val map:Map[Coord, Char] = 
         (for 
@@ -121,14 +133,37 @@ extension (m:Seq[String]) {
 
     println(md((sx, sy)))
 
-    val j = JellyFlood(md)
+    val j = JellyFlood(md)(map)
     println("start")
     j.flood((sx, sy), 0)
     println("Done")
 
-    println(j.maxDistance())
+    val ((endX, endY), maxDistance) = j.maxDistance()
+    println(s"Furthest distance is $maxDistance at $endX $endY")
+
+    j.pp()
 
     // For part 2, we need to count crossings
+    // First, though, we have to eliminate dead ends
+
+    // Let's try something. Jelly flood in the reverse direction
+    // Squares are only on the loop if the sum of their entries in both maps is the maximum distance.
+
+    val reverseJ = JellyFlood(md)(map)
+    println("start reverse")
+    reverseJ.flood((endX, endY), 0)
+    println("end reverse")
+    println(reverseJ.maxDistance())
+
+    reverseJ.pp()
+
+
+    val loopSquares = 
+        (for (p, v) <- j.distance if v + reverseJ.distance(p) == maxDistance yield p).toSet
+
+
+
+
     // If we count squares to the left, then if there is an even number of "values" in the distance map, we are not enclosed by the loop.
 
 
