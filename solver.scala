@@ -97,7 +97,7 @@ extension (m:Seq[String]) {
 }
 
 @main def main() = 
-    val lines = Source.fromFile("test2a.txt").getLines().toSeq
+    val lines = Source.fromFile("input.txt").getLines().toSeq
 
     val maxY = lines.indices.max
     val maxX = lines.head.indices.max
@@ -192,49 +192,63 @@ extension (m:Seq[String]) {
         val dest = pp + dir
         (!loopSquares.contains(pp) && !loopSquares.contains(dest)) || md.getOrElse(pp, Seq.empty).contains(dir)
 
+    val whiteSpaceMap = 
+        for 
+            (p, dirs) <- md 
+        yield 
+            if loopSquares.contains(p) then 
+                p -> dirs 
+            else p -> (
+                for 
+                    d <- all 
+                    dest = p + d if !loopSquares.contains(dest) || md(dest).contains(d.inverse)
 
-    def countCrossings(p:Coord, dir:Coord):Int =
-        var count = 0
-        var cursor = p
-        while map.contains(cursor) do 
-            val dest = cursor + dir
-            if !loopSquares.contains(cursor) && loopSquares.contains(dest) then 
-                count = count + 1
-            else if loopSquares.contains(cursor) && !loopSquares.contains(dest) then 
-                count = count 
-            else if !canTraverse(cursor, dir) then 
-                count = count + 2
+                    //if !loopSquares.contains(p + d) 
+                yield d
+            )
 
-            cursor = cursor + dir
+    def edgeRight(p:Coord) = 
+        map.contains(p) && !whiteSpaceMap(p).contains(East)
 
-        count
-
-   //println("Range method")
-    // println(for x <- 13 to maxX if !canTraverse((x, 5), East) yield x)
-
-    println(countCrossings((71, 71), North))
-    println(countCrossings((71, 71), East))
-    println(countCrossings((71, 71), South))
-    println(countCrossings((71, 71), West))
-
-    //def allOddCrossings(p:Coord) = all.forall({ (d) => countCrossings(p, d) % 2 == 1 })
-
-    val allSquares = for 
+    val allEastEdges = for 
         x <- 0 to maxX
-        y <- 0 to maxY
+        y <- 0 to maxY if edgeRight((x, y))
     yield (x, y)
 
-    val odds = for p <- allSquares if !loopSquares.contains(p) && countCrossings(p, East) % 2 != 0 yield p
+    pp(allEastEdges.toSet)
+
+    def edgesBefore(p:Coord) = 
+        allEastEdges.count({ case (x, y) => x < p._1 && y == p._2 })
+
+    
+    val allSq = for 
+        x <- 0 to maxX
+        y <- 0 to maxY if !loopSquares.contains((x, y))
+    yield (x, y)
 
 
-    println("Odds " + odds.length)
+    def parity(p:Coord) = 
+        (0 until p._1).foldLeft(false) { (par, x) => 
+            val loc = (x, p._2)
+            if loopSquares.contains(loc) && md(loc).contains(North) then
+                !par
+            else par
+        }
 
-    pp(odds.toSet)
+    println("by parity")
+    val res = allSq.filter({ case p => parity(p) })
+
+    pp(res.toSet)
+
+    println(res.size)
 
 
 
+/*def 
 
+((edgesBefore(p)) / 2) % 2 == 1
 
+*/
 
 
 
