@@ -44,6 +44,9 @@ val moveDirections:Map[Char, Seq[Coord]] = Map(
 )
 
 // Here's one I made earlier
+// This is adapted from the "check" code I use with students here: 
+// https://github.com/theIntelligentBook/thinkingaboutprogramming/blob/master/src/main/scala/willtap/imperativeTopic/JellyFlood.scala
+// except for AoC, it needed some fixing for efficiency
 class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char]) {
     val distance = mutable.Map.empty[(Int, Int), Int]
 
