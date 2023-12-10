@@ -47,7 +47,18 @@ val moveDirections:Map[Char, Seq[Coord]] = Map(
 class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]]) {
     val distance = mutable.Map.empty[(Int, Int), Int]
 
-    final def check(p:(Int, Int), dist:Int):Unit = {
+
+    def flood(p:(Int, Int), dist:Int):Unit = {
+        val q = mutable.Queue(p -> dist)
+
+        while !q.isEmpty do
+            val (loc, d) = q.dequeue()
+            val add = check(loc, d)
+            println(add)
+            q.enqueueAll(add)
+    }
+
+    final def check(p:(Int, Int), dist:Int):Seq[(Coord, Int)] = {
         println(s"Checking $p $dist")
         distance(p) = dist
         val (x, y) = p
@@ -57,7 +68,7 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]]) {
             distance.getOrElse(p + (dx, dy), Int.MaxValue) > dist + 1 &&
                 allowedDirections.getOrElse(p, Seq.empty).contains((dx, dy))
             )
-        } check(p + (dx, dy), dist + 1)
+        } yield (p + (dx, dy), dist + 1)
     }
 
     def maxDistance() = 
@@ -112,7 +123,7 @@ extension (m:Seq[String]) {
 
     val j = JellyFlood(md)
     println("start")
-    j.check((sx, sy), 0)
+    j.flood((sx, sy), 0)
     println("Done")
 
     println(j.maxDistance())
