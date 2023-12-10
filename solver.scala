@@ -57,7 +57,7 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char
             val (loc, d) = q.dequeue()
             val add = check(loc, d)
             // println(add)
-            val filtered = for (p, v) <- add if q.find({ case (pp, _) => pp == p}).isEmpty yield p -> v
+            val filtered = for (p, v) <- add if q.find({ case (pp, vv) => pp == p && vv <= v}).isEmpty yield p -> v
             q.enqueueAll(filtered)
     }
 
@@ -105,7 +105,7 @@ extension (m:Seq[String]) {
     val map:Map[Coord, Char] = 
         (for 
             y <- lines.indices 
-            x <- lines.indices
+            x <- lines(y).indices
         yield (x, y) -> lines(y)(x)).toMap
 
     val (sx, sy) = map.find({ case (c, ch) => ch == 'S' }).get._1
@@ -183,40 +183,26 @@ extension (m:Seq[String]) {
 
     println()
 
-    // Plan B. Flood fill the outside of the map.
+    // Let's go back to whether the number of crossings is odd or even. But let's take into account whether you are travelling along a pipe.
 
-    println("Generating the barrier map")
-    val loopAsBarrier = for (p, _) <- map yield 
-        if 
-            loopSquares.contains(p) then p -> Seq.empty 
-        else 
-            p -> (for d <- all if map.contains(p + d) yield d)
+    def countCrossings(p:Coord):Int =
+        var count = 0
+        val direction = North
+        var cursor = p
+        while cursor._2 > 0 do 
+            if md.getOrElse(cursor, Seq.empty).contains(North) then count = count + 1
+            cursor = cursor + North
 
-    
-    val outsideFill = JellyFlood(loopAsBarrier)(map)
-    println("Flood top")
-    for 
-        x <- 0 to maxX if !loopSquares.contains((x, 0)) && !outsideFill.distance.contains((x, 0)) 
-    do 
-        println(s"Flooding $x 0")
-        outsideFill.flood((x, 0), 0)
-    println("Flood bottom")
-    for x <- 0 to maxX if !loopSquares.contains((x, maxY)) do outsideFill.flood((x, maxY), 0)
-    println("Flood left")
-    for y <- 0 to maxY if !loopSquares.contains((0, y)) do outsideFill.flood((0, y), 0)
-    println("Flood right")
-    for y <- 0 to maxY if !loopSquares.contains((maxX, y)) do outsideFill.flood((maxY, y), 0)
+        count
 
-
-    outsideFill.pp()
-
-    val enclosed = for 
+    val allSquares = for 
+        x <- 0 to maxX
         y <- 0 to maxY
-        x <- 0 to maxX if !loopSquares.contains((x, y)) && !outsideFill.distance.contains((x, y))
     yield (x, y)
 
-    println("Enclosed: " + enclosed.size)
+    val odds = for p <- allSquares if !loopSquares.contains(p) && countCrossings(p) % 2 == 1 yield p
 
+    println("Odds " + odds.length)
 
 
 
