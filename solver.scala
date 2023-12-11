@@ -81,7 +81,7 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(costs: Map[Coord, Ma
 
 def inflateLine(s:Seq[String], l:String):String = {
     (for (c, x) <- l.zipWithIndex yield 
-        if s.exists((ll) => ll(x) == '#') then "" + c else "..").mkString
+        if s.exists((ll) => ll(x) == '#') then "" + c else "**").mkString
 }
 
 def inflate(s:Seq[String]):Seq[String] = 
@@ -89,7 +89,10 @@ def inflate(s:Seq[String]):Seq[String] =
         line <- s
         inflated <- {
             val inflatedLine = inflateLine(s, line)
-            (if !line.contains('#') then Seq(inflatedLine, inflatedLine) else Seq(inflatedLine))
+            (if !line.contains('#') then
+                val stars = inflatedLine.map(_ => '*') 
+                Seq(stars, stars) 
+            else Seq(inflatedLine))
         }
     yield inflated
 
@@ -99,7 +102,7 @@ def pp(s:Seq[String]):Unit =
 
 
 @main def main() = 
-    val lines = Source.fromFile("input.txt").getLines().toSeq
+    val lines = Source.fromFile("test.txt").getLines().toSeq
 
     val inflated = inflate(lines)
     pp(inflated)
@@ -121,7 +124,7 @@ def pp(s:Seq[String]):Unit =
 
     val allowedDirections = (for 
         (line, y) <- inflated.zipWithIndex
-        (c, x) <- inflated.zipWithIndex 
+        (c, x) <- line.zipWithIndex 
     yield 
         (x, y) -> (for 
             dir <- all 
@@ -129,15 +132,25 @@ def pp(s:Seq[String]):Unit =
         yield dir)
     ).toMap
 
+    val costs = (for 
+        (line, y) <- inflated.zipWithIndex
+        (c, x) <- line.zipWithIndex 
+    yield 
+        (x, y) -> (
+            for 
+                dir <- allowedDirections((x, y)) 
+                p2 = (x, y) + dir if allowedDirections.contains(p2) 
+            yield 
+                if inflated(p2._2)(p2._1) == '*' then dir -> 1L else dir -> 1L
+        ).toMap
+    ).toMap
 
 
     val paths = for (s, e) <- pairs yield {
-        // forget the flood for now, just manhattan distance
-        Math.abs(e._2 - s._2) + Math.abs(e._1 - s._1)
-
-        // val j = JellyFlood(allowedDirections)
-        // j.flood(s, 0)
-        // (s, e) -> j.distance(e)
+        val j = JellyFlood(allowedDirections)(costs)
+        j.flood(s, 0)
+        //(s, e) -> j.distance(e)
+        j.distance(e)
     }
 
     println(paths.sum / 2)
