@@ -37,13 +37,13 @@ val all = Seq(North, South, East, West)
 // This is adapted from the "check" code I use with students here: 
 // https://github.com/theIntelligentBook/thinkingaboutprogramming/blob/master/src/main/scala/willtap/imperativeTopic/JellyFlood.scala
 // except for AoC, it needed some fixing for efficiency
-class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]]) {
-    val distance = mutable.Map.empty[(Int, Int), Int]
+class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(costs: Map[Coord, Map[Coord, Long]]) {
+    val distance = mutable.Map.empty[(Int, Int), Long]
 
     def maxX = distance.keys.map(_._1).max
     def maxY = distance.keys.map(_._1).max
 
-    def flood(p:(Int, Int), dist:Int):Unit = {
+    def flood(p:(Int, Int), dist:Long):Unit = {
         val q = mutable.Queue(p -> dist)
 
         while !q.isEmpty do
@@ -54,18 +54,15 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]]) {
             q.enqueueAll(filtered)
     }
 
-    final def check(p:(Int, Int), dist:Int):Seq[(Coord, Int)] = {
+    final def check(p:(Int, Int), dist:Long):Seq[(Coord, Long)] = {
         // println(s"Checking $p $dist")
         distance(p) = dist
         val (x, y) = p
 
         for {
-            (dx, dy) <- all if (
-            distance.getOrElse(p + (dx, dy), Int.MaxValue) > dist + 1 && 
-                allowedDirections.contains(p + (dx, dy)) &&
-                allowedDirections.getOrElse(p, Seq.empty).contains((dx, dy))
-            )
-        } yield (p + (dx, dy), dist + 1)
+            dir <- allowedDirections.getOrElse(p, Seq.empty)
+            cost = costs(p)(dir) if distance.getOrElse(p + dir, Long.MaxValue) > dist + cost
+        } yield (p + dir, dist + cost)
     }
 
     def maxDistance() = 
