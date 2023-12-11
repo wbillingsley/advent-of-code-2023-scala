@@ -102,7 +102,7 @@ def pp(s:Seq[String]):Unit =
 
 
 @main def main() = 
-    val lines = Source.fromFile("test.txt").getLines().toSeq
+    val lines = Source.fromFile("input.txt").getLines().toSeq
 
     val inflated = inflate(lines)
     pp(inflated)
