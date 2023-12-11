@@ -99,124 +99,23 @@ extension (m:Seq[String]) {
         if c == 'S' then all else moveDirections.getOrElse(c, Seq.empty)
 }
 
+def inflate(s:Seq[String]):Seq[String] = 
+    for 
+        line <- s
+        inflated <- (if !line.contains('#') then Seq(line, line) else Seq(line))
+    yield inflated
+
+
+def pp(s:Seq[String]):Unit = 
+    for line <- s do println(line)
+
+
 @main def main() = 
-    val lines = Source.fromFile("input.txt").getLines().toSeq
+    val lines = Source.fromFile("test.txt").getLines().toSeq
 
-    val maxY = lines.indices.max
-    val maxX = lines.head.indices.max
-
-    val map:Map[Coord, Char] = 
-        (for 
-            y <- lines.indices 
-            x <- lines(y).indices
-        yield (x, y) -> lines(y)(x)).toMap
-
-    val (sx, sy) = map.find({ case (c, ch) => ch == 'S' }).get._1
+    pp(inflate(lines))
 
 
-    val md = 
-        map.map({ case (c, ch) => 
-            if ch == 'S' then 
-                // println(s"char at $c is ${map(c)}")
-                // println(s"ffs ${for d <- all yield d}")
-                val surroudingLocs = 
-                    for 
-                        d <- all if map.contains(c + d) 
-                        toHere = {
-                            val mm = moveDirections(map(c + d)) 
-                            // println(s"Loc ${c + d} ch ${map(c + d)} dir $mm")
-                            mm
-                        } if toHere.contains(d.inverse)
-                    yield d
-
-                // println(s"From start, I can go $surroudingLocs")
-                
-                c -> surroudingLocs
-            else c -> moveDirections.getOrElse(ch, Seq.empty)})
-        
-
-
-    println(s"Start location is $sx $sy")
-
-    println(md((sx, sy)))
-
-    val j = JellyFlood(md)(map)
-    println("start forward flood")
-    j.flood((sx, sy), 0)
-    println("Done forward flood")
-
-    val ((endX, endY), maxDistance) = j.maxDistance()
-    println(s"Furthest distance is $maxDistance at $endX $endY")
-
-    j.pp()
-
-    // For part 2, we need to count crossings
-    // First, though, we have to eliminate dead ends
-
-    // Let's try something. Jelly flood in the reverse direction
-    // Squares are only on the loop if the sum of their entries in both maps is the maximum distance.
-
-    val reverseJ = JellyFlood(md)(map)
-    println("start reverse")
-    reverseJ.flood((endX, endY), 0)
-    println("end reverse")
-    println(reverseJ.maxDistance())
-
-    reverseJ.pp()
-
-    val bothDirections = 
-        for (p, v) <- j.distance yield p -> (v + reverseJ.distance(p))
-
-
-    // for (p, sum) <- bothDirections do println(s"$p $sum")
-    
-    // for (p, v) <- j.distance do
-    //     val forward = v
-    //     val back = reverseJ.distance(p)
-    //     println(s"$p is distance ${forward} and ${back} .. ${forward + back}")
-
-    val loopSquares = bothDirections.filter({ case (_, v) => v == maxDistance})
-
-    println("---TRIMMED MAP---")
-
-    def pp(locations:Set[Coord]):Unit = 
-        for y <- 0 to maxY do
-            for x <- 0 to maxX do
-                if locations.contains((x, y)) then print(map((x, y))) else print(" ")
-            println()
-
-
-    pp(loopSquares.keySet.toSet)
-    println()
-
-    // Let's go back to whether the number of crossings is odd or even. 
-
-    // After much blundering around, I finally thought to switch how I thought about it.
-    // Forget, "how many times does a line cross the loop" (which was causing me hassles with what about when the line runs along the loop)
-    // Try "how many times does the loop cross the line"?
-    // Which is a much simpler case of taking a line eastwards from the point in question, and doing a parity check on how often the loop will let something
-    // go North along that line.
-
-    val allSq = for 
-        x <- 0 to maxX
-        y <- 0 to maxY if !loopSquares.contains((x, y))
-    yield (x, y)
-
-
-    def parity(p:Coord) = 
-        (0 until p._1).foldLeft(false) { (par, x) => 
-            val loc = (x, p._2)
-            if loopSquares.contains(loc) && md(loc).contains(North) then
-                !par
-            else par
-        }
-
-    println("by parity")
-    val res = allSq.filter({ case p => parity(p) })
-
-    pp(res.toSet)
-
-    println(res.size)
 
     
 
