@@ -82,11 +82,18 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]]) {
 
 }
 
+def inflateLine(s:Seq[String], l:String):String = {
+    (for (c, x) <- l.zipWithIndex yield 
+        if s.exists((ll) => ll(x) == '#') then "" + c else "..").mkString
+}
 
 def inflate(s:Seq[String]):Seq[String] = 
     for 
         line <- s
-        inflated <- (if !line.contains('#') then Seq(line, line) else Seq(line))
+        inflated <- {
+            val inflatedLine = inflateLine(s, line)
+            (if !line.contains('#') then Seq(inflatedLine, inflatedLine) else Seq(inflatedLine))
+        }
     yield inflated
 
 
@@ -128,12 +135,15 @@ def pp(s:Seq[String]):Unit =
 
 
     val paths = for (s, e) <- pairs yield {
-        val j = JellyFlood(allowedDirections)
-        j.flood(s, 0)
-        j.distance(e)
+        // forget the flood for now, just manhattan distance
+        Math.abs(e._2 - s._2) + Math.abs(e._1 - s._1)
+
+        // val j = JellyFlood(allowedDirections)
+        // j.flood(s, 0)
+        // (s, e) -> j.distance(e)
     }
 
-    println(paths)
+    println(paths.sum / 2)
 
 
 
