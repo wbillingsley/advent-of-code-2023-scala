@@ -8,30 +8,6 @@ import scala.collection.mutable
 
 import util.*
 
-type Line = Seq[Int]
-
-val integers = "(-?\\d+)".r
-val decimals = "(-?\\d+)([.]\\d+)?".r
-
-def allIntegersIn(s:String) = integers.findAllIn(s).map(_.toLong).toSeq
-def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
-
-type Coord = (Int, Int)
-
-extension (c:Coord) {
-    def +(c2:Coord) = 
-        val (x, y) = c
-        val (xx, yy) = c2
-        (xx + x, yy + y)
-
-    def inverse = (-c._1, -c._2)
-}
-
-val North = (0, -1)
-val South = (0, 1)
-val East = (1, 0)
-val West = (-1, 0)
-val all = Seq(North, South, East, West)
 
 def inflateLine(s:Seq[String], l:String):String = {
     (for (c, x) <- l.zipWithIndex yield 
@@ -75,29 +51,6 @@ def pp(s:Seq[String]):Unit =
 
 
     println(s"${pairs.length} pairs")
-
-    val allowedDirections = (for 
-        (line, y) <- inflated.zipWithIndex
-        (c, x) <- line.zipWithIndex 
-    yield 
-        (x, y) -> (for 
-            dir <- all 
-            p2 = (x, y) + dir if inflated.indices.contains(p2._2) && inflated(y).indices.contains(p2._1) 
-        yield dir)
-    ).toMap
-
-    val costs = (for 
-        (line, y) <- inflated.zipWithIndex
-        (c, x) <- line.zipWithIndex 
-    yield 
-        (x, y) -> (
-            for 
-                dir <- allowedDirections((x, y)) 
-                p2 = (x, y) + dir if allowedDirections.contains(p2) 
-            yield 
-                if inflated(p2._2)(p2._1) == '*' then dir -> 1L else dir -> 1L
-        ).toMap
-    ).toMap
 
 
     val paths = for (s, e) <- pairs if s != e yield {
