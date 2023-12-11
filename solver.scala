@@ -33,21 +33,11 @@ val East = (1, 0)
 val West = (-1, 0)
 val all = Seq(North, South, East, West)
 
-val moveDirections:Map[Char, Seq[Coord]] = Map(
-    '|' -> Seq(North, South),
-    '-' -> Seq(East, West),
-    'L' -> Seq(North, East),
-    'J' -> Seq(North, West),
-    '7' -> Seq(South, West),
-    'F' -> Seq(South, East),
-    '.' -> Seq.empty,
-)
-
 // Here's one I made earlier
 // This is adapted from the "check" code I use with students here: 
 // https://github.com/theIntelligentBook/thinkingaboutprogramming/blob/master/src/main/scala/willtap/imperativeTopic/JellyFlood.scala
 // except for AoC, it needed some fixing for efficiency
-class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char]) {
+class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]]) {
     val distance = mutable.Map.empty[(Int, Int), Int]
 
     def maxX = distance.keys.map(_._1).max
@@ -72,7 +62,7 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char
         for {
             (dx, dy) <- all if (
             distance.getOrElse(p + (dx, dy), Int.MaxValue) > dist + 1 && 
-                map.contains(p + (dx, dy)) &&
+                allowedDirections.contains(p + (dx, dy)) &&
                 allowedDirections.getOrElse(p, Seq.empty).contains((dx, dy))
             )
         } yield (p + (dx, dy), dist + 1)
@@ -93,12 +83,6 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char
 }
 
 
-extension (m:Seq[String]) {
-    def directions(x:Int, y:Int) = 
-        val c= m(y)(x)
-        if c == 'S' then all else moveDirections.getOrElse(c, Seq.empty)
-}
-
 def inflate(s:Seq[String]):Seq[String] = 
     for 
         line <- s
@@ -113,7 +97,43 @@ def pp(s:Seq[String]):Unit =
 @main def main() = 
     val lines = Source.fromFile("test.txt").getLines().toSeq
 
-    pp(inflate(lines))
+    val inflated = inflate(lines)
+    pp(inflated)
+
+    val galaxies = for 
+        (line, y) <- inflated.zipWithIndex
+        (c, x) <- line.zipWithIndex if c == '#'
+    yield (x, y) 
+
+    println(galaxies)
+
+    val pairs = for 
+        g1 <- galaxies
+        g2 <- galaxies if g1 != g2
+    yield (g1, g2)
+
+
+    println(s"${pairs.length} pairs")
+
+    val allowedDirections = (for 
+        (line, y) <- inflated.zipWithIndex
+        (c, x) <- inflated.zipWithIndex 
+    yield 
+        (x, y) -> (for 
+            dir <- all 
+            p2 = (x, y) + dir if inflated.indices.contains(p2._2) && inflated(y).indices.contains(p2._1) 
+        yield dir)
+    ).toMap
+
+
+
+    val paths = for (s, e) <- pairs yield {
+        val j = JellyFlood(allowedDirections)
+        j.flood(s, 0)
+        j.distance(e)
+    }
+
+    println(paths)
 
 
 
