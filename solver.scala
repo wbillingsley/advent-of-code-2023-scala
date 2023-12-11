@@ -81,7 +81,7 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(costs: Map[Coord, Ma
 
 def inflateLine(s:Seq[String], l:String):String = {
     (for (c, x) <- l.zipWithIndex yield 
-        if s.exists((ll) => ll(x) == '#') then "" + c else "**").mkString
+        if s.exists((ll) => ll(x) == '#') then "" + c else "*").mkString
 }
 
 def inflate(s:Seq[String]):Seq[String] = 
@@ -91,7 +91,7 @@ def inflate(s:Seq[String]):Seq[String] =
             val inflatedLine = inflateLine(s, line)
             (if !line.contains('#') then
                 val stars = inflatedLine.map(_ => '*') 
-                Seq(stars, stars) 
+                Seq(stars) 
             else Seq(inflatedLine))
         }
     yield inflated
@@ -102,7 +102,7 @@ def pp(s:Seq[String]):Unit =
 
 
 @main def main() = 
-    val lines = Source.fromFile("test.txt").getLines().toSeq
+    val lines = Source.fromFile("input.txt").getLines().toSeq
 
     val inflated = inflate(lines)
     pp(inflated)
@@ -146,11 +146,20 @@ def pp(s:Seq[String]):Unit =
     ).toMap
 
 
-    val paths = for (s, e) <- pairs yield {
-        val j = JellyFlood(allowedDirections)(costs)
-        j.flood(s, 0)
-        //(s, e) -> j.distance(e)
-        j.distance(e)
+    val paths = for (s, e) <- pairs if s != e yield {
+        val y2 = Math.max(s._2, e._2)
+        val y1 = Math.min(s._2, e._2)
+        val x2 = Math.max(s._1, e._1)
+        val x1 = Math.min(s._1, e._1)
+
+        val str = (for x <- x1 until x2 yield inflated(y1)(x)) ++ (for y <- y1 until y2 yield inflated(y)(x2))
+
+        val distance = str.foldLeft(0L) { case (t, ch) => ch match {
+            case '*' => t + 1000000L
+            case _ => t + 1
+        }}
+        distance
+        
     }
 
     println(paths.sum / 2)
