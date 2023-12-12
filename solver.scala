@@ -46,10 +46,10 @@ case class LazyChain[T](heads:Seq[T])(_tail: () => Seq[LazyChain[T]]) {
             val nextInput = input.drop(headStrings.length)
             if tail.isEmpty then             
                 if headStrings.length == input.length then 
-                    println("+" + ret + headStrings)
+                    // println("+" + ret + headStrings)
                     1 
                 else 
-                    println("-" + ret + headStrings)
+                    // println("-" + ret + headStrings)
                     0
             else 
                 tail.map(_.stringMatch(nextInput)(f)(compare)(ret + headStrings)).sum
@@ -73,6 +73,20 @@ def lazyDistribute[T](value:T, number:Int, into:Seq[(T, Int)])(first:Boolean = f
         
 
 
+def lazyDistributeS(value:Boolean, number:Int, into:Seq[(Boolean, Int)])(first:Boolean = false)(check:String):Seq[LazyChain[(Boolean, Int)]] = 
+    if number == 0 then Seq.empty else 
+        val keep = into.length - 1 // only the first and last buckets can have zero items
+        val start = if first then 0 else 1
+
+        for 
+            n <- start to number - keep if !check.take(n).contains('#')  // avoid generating the cases where we haven't got the space
+        yield
+            if into.isEmpty then 
+                LazyChain(Seq(value -> n))(() => Seq.empty)
+            else 
+                LazyChain(Seq(value -> n, into.head))(() => lazyDistributeS(value, number - n, into.tail)(false)(check.drop(n + into.head._2)))
+
+
 
 
 def brokenGroups(s:Seq[Boolean]) = 
@@ -93,7 +107,7 @@ case class ConditionReport(individual:String, byGroup:String) {
     def spaceToDistribute = springCount - totalBroken
 
     lazy val possibilities = 
-        val all = lazyDistribute(true, spaceToDistribute, brokenFLE)(true)
+        val all = lazyDistributeS(true, spaceToDistribute, brokenFLE)(true)(individual)
         all.map(_.stringMatch(individual)({ (v, n) => 
             if v then "." * n else "#" * n 
         })({ (a, b) =>
@@ -152,12 +166,12 @@ def toBinary(i:Int, l:Int):List[Boolean] =
 
 def decompose(line:String):ConditionReport =
     val Array(indiv, byGroup) = line.split(' ')
-    val unfoldedI = Seq.fill(1)(indiv).mkString("?")
-    val unfoldedG = Seq.fill(1)(byGroup).mkString(",")
+    val unfoldedI = Seq.fill(5)(indiv).mkString("?")
+    val unfoldedG = Seq.fill(5)(byGroup).mkString(",")
     ConditionReport(unfoldedI, unfoldedG)
 
 @main def main() = 
-    val lines = Source.fromFile("test.txt").getLines().toSeq
+    val lines = Source.fromFile("input.txt").getLines().toSeq
 
     val puzzle = lines.map(decompose)
     println(puzzle.head)
