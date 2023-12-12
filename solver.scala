@@ -78,8 +78,16 @@ def lazyDistributeS(value:Boolean, number:Int, into:Seq[(Boolean, Int)])(first:B
         val keep = into.length - 1 // only the first and last buckets can have zero items
         val start = if first then 0 else 1
 
+        val followingHashes = if into.isEmpty then 0 else into.head._2
+
         for 
-            n <- start to number - keep if !check.take(n).contains('#')  // avoid generating the cases where we haven't got the space
+            n <- start to number - keep 
+            frag = check.take(n)
+            after = check.drop(n)
+            if {
+                !frag.contains('#') && // avoid generating the cases where we haven't got the space
+                !after.take(followingHashes).contains('.')
+            }
         yield
             if into.isEmpty then 
                 LazyChain(Seq(value -> n))(() => Seq.empty)
