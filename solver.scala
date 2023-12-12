@@ -30,84 +30,42 @@ def rle[T](s:Seq[T]):List[(T, Int)] =
 
     _rle(s, Nil).reverse
 
-case class LazyChain[T](heads:Seq[(T, Int)])(_tail: () => Seq[LazyChain[T]]) {
+def ctw(s:String, hashgrps:List[Int]):Long = {
+    val cache = mutable.Map.empty[(String, List[Int]), Long]
 
-    def tail = _tail()
+    def countTheWays(currentGroup:Option[Int], remaining:String, remainingGroups:List[Int]):Long = {
+        if remaining.isEmpty() then 
+            if remainingGroups.isEmpty && (currentGroup.isEmpty || currentGroup.contains(0)) then 1L else 0
+        else if remaining.count((c) => c == '#' || c == '?') < remainingGroups.sum then 0
+        else if remaining.length < remainingGroups.sum + remainingGroups.length - 1 then 0 // Not enough space left for the groups
+        else
+            val ch = remaining.head
+            (ch, currentGroup) match {
+                case ('.', Some(r)) if r > 0 => 0 // We have met a dot before we have completed this group of hashes
+                case ('.', _) => countTheWays(None, remaining.tail, remainingGroups) // A dot, but we're outside of a group
+                case ('#', Some(r)) if r <= 0 => 0 // This group of hashes is too long
+                case ('#', Some(r)) => countTheWays(Some(r - 1), remaining.tail, remainingGroups)
+                case ('#', None) => remainingGroups match {
+                    case h :: t => countTheWays(Some(h - 1), remaining.tail, t)
+                    case _ => 0 // out of hashes
+                }
+                case ('?', Some(r)) if r > 0 => countTheWays(Some(r - 1), remaining.tail, remainingGroups) // assume #
+                case ('?', Some(r)) => countTheWays(None, remaining.tail, remainingGroups) // assume . -- we need a . to separate the group
+                case ('?', None) => remainingGroups match {
+                    case h :: t => 
+                        countTheWays(Some(h - 1), remaining.tail, t)  // if #
+                        + cache.getOrElseUpdate((remaining.tail, remainingGroups), countTheWays(None, remaining.tail, remainingGroups)) 
 
-    def naiveCount(expectedLength:Int):Long = 
-        val hl = heads.map(_._2).sum
-        val t = tail
-        if t.isEmpty then
-            if expectedLength == hl then 1 else 0
-        else t.map(_.naiveCount(expectedLength - hl)).sum
+                    case _ => 
+                        countTheWays(None, remaining.tail, remainingGroups) // Must be .
+                }
+            }
 
+    }
 
-    // def forall(f: T => Boolean):Boolean =
-    //     heads.forall(f) && tail.forall(_.forall(f))
-
-    // // Compare this with a string representation, using a test function, bailing lazily if it fails
-    // def stringMatch(input:String)(f: T => String)(compare: (String, String) => Boolean)(ret:String = ""):Int = 
-    //     val headStrings = heads.map(f).mkString
-    //     val matchTo = input.take(headStrings.length())
-
-    //     if compare(headStrings, matchTo) then 
-    //         val nextInput = input.drop(headStrings.length)
-    //         if tail.isEmpty then             
-    //             if headStrings.length == input.length then 
-    //                 // println("+" + ret + headStrings)
-    //                 1 
-    //             else 
-    //                 // println("-" + ret + headStrings)
-    //                 0
-    //         else 
-    //             tail.map(_.stringMatch(nextInput)(f)(compare)(ret + headStrings)).sum
-    //     else 0
+    countTheWays(None, s, hashgrps)
 
 }
-
-
-def lazyDistribute[T](value:T, number:Int, into:Seq[(T, Int)])(first:Boolean = false):Seq[LazyChain[T]] = 
-    if number == 0 then Seq.empty else 
-        val keep = into.length - 1 // only the first and last buckets can have zero items
-        val start = if first then 0 else 1
-
-        for 
-            n <- start to number - keep
-        yield
-            if into.isEmpty then 
-                LazyChain(Seq(value -> n))(() => Seq.empty)
-            else 
-                LazyChain(Seq(value -> n, into.head))(() => lazyDistribute(value, number - n, into.tail)(false))
-        
-
-
-def lazyDistributeS(value:Boolean, number:Int, into:Seq[(Boolean, Int)])(first:Boolean = false)(check:String):Seq[LazyChain[Boolean]] = 
-    if number == 0 then Seq.empty else 
-        val keep = into.length - 1 // only the first and last buckets can have zero items
-        val start = if first then 0 else 1
-
-        val followingHashes = if into.isEmpty then 0 else into.head._2
-
-        if number == 0 || check.length - followingHashes <= 0 then Seq.empty else 
-            for 
-                n <- start to number - keep 
-                frag = check.take(n)
-                after = check.drop(n)
-                if {
-                    !frag.contains('#') && // avoid generating the cases where we haven't got the space
-                    !after.take(followingHashes).contains('.')
-                }
-            yield
-                if into.isEmpty then 
-                    LazyChain(Seq(value -> n))(() => Seq.empty)
-                else 
-                    LazyChain(Seq(value -> n, into.head))(() => lazyDistributeS(value, number - n, into.tail)(false)(check.drop(n + into.head._2)))
-
-
-
-
-def brokenGroups(s:Seq[Boolean]) = 
-    rle(s).filter({ (c, n) => !c }).map({ (c, n) => n })
 
 case class ConditionReport(individual:String, byGroup:String) {
 
@@ -124,54 +82,15 @@ case class ConditionReport(individual:String, byGroup:String) {
     def spaceToDistribute = springCount - totalBroken
 
     lazy val possibilities = 
-        val all = lazyDistributeS(true, spaceToDistribute, brokenFLE)(true)(individual)
-        // all.map(_.stringMatch(individual)({ (v, n) => 
-        //     if v then "." * n else "#" * n 
-        // })({ (a, b) =>
-        //     a.zip(b).forall { (aa, bb) => 
-        //         aa == bb || aa == '?' || bb == '?'
-        //     }
-        // })("")).sum
-        all.map(_.naiveCount(springCount)).sum
+        ctw(individual, brokenCounts.toList)
 
     val unknowns = individual.filter(_ == '?').length
-
-    def compatibleByCharacter(c:Char, b:Boolean):Boolean = c match {
-        case '?' => true
-        case '.' => b
-        case '#' => !b
-    }
-
-    def compatibleA(b:Seq[Boolean]):Boolean = 
-        individual.zip(b).forall { (c, bb) => compatibleByCharacter(c, bb) }
-
-    def compatibleG(b:Seq[Boolean]):Boolean = 
-        brokenGroups(b).mkString(",") == byGroup   
-
-
-    def merge(s:List[Boolean]):Seq[Boolean] = 
-        var cursor = s
-        individual.map { 
-            case '?' => 
-                val h :: t = cursor : @unchecked
-                cursor = t
-                h
-            case '.' => true
-            case '#' => false
-        }
 
     def pp() = 
         println(this)
         println(s"Distribute $spaceToDistribute across $gaps gaps")
         // println(s"length ${individual.length()} unkowns $unknowns broken $brokenCounts totalling $totalBroken with ${brokenCounts.length - 1} spaces")
         println()
-
-    def compatible = 
-        println(s"Calculating compatible for ${this} with ${unknowns} unknowns")
-        for 
-            i <- 0 until Math.pow(2, unknowns).toInt 
-            binary = merge(toBinary(i, unknowns)) if compatibleG(binary)
-        yield binary
 
 }
 
