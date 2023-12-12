@@ -38,15 +38,23 @@ case class LazyChain[T](heads:Seq[T])(_tail: () => Seq[LazyChain[T]]) {
         heads.forall(f) && tail.forall(_.forall(f))
 
     // Compare this with a string representation, using a test function, bailing lazily if it fails
-    def stringMatch(input:String)(f: T => String)(compare: (String, String) => Boolean):Int = 
+    def stringMatch(input:String)(f: T => String)(compare: (String, String) => Boolean)(ret:String = ""):Int = 
         val headStrings = heads.map(f).mkString
         val matchTo = input.take(headStrings.length())
 
         if compare(headStrings, matchTo) then 
             val nextInput = input.drop(headStrings.length)
-            if tail.isEmpty then 1 else 
-                tail.map(_.stringMatch(nextInput)(f)(compare)).sum
+            if tail.isEmpty then             
+                if headStrings.length == input.length then 
+                    println("+" + ret + headStrings)
+                    1 
+                else 
+                    println("-" + ret + headStrings)
+                    0
+            else 
+                tail.map(_.stringMatch(nextInput)(f)(compare)(ret + headStrings)).sum
         else 0
+
 }
 
 
@@ -92,7 +100,7 @@ case class ConditionReport(individual:String, byGroup:String) {
             a.zip(b).forall { (aa, bb) => 
                 aa == bb || aa == '?' || bb == '?'
             }
-        })).sum
+        })("")).sum
 
     val unknowns = individual.filter(_ == '?').length
 
@@ -144,8 +152,8 @@ def toBinary(i:Int, l:Int):List[Boolean] =
 
 def decompose(line:String):ConditionReport =
     val Array(indiv, byGroup) = line.split(' ')
-    val unfoldedI = Seq.fill(5)(indiv).mkString("?")
-    val unfoldedG = Seq.fill(5)(byGroup).mkString(",")
+    val unfoldedI = Seq.fill(1)(indiv).mkString("?")
+    val unfoldedG = Seq.fill(1)(byGroup).mkString(",")
     ConditionReport(unfoldedI, unfoldedG)
 
 @main def main() = 
