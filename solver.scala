@@ -30,12 +30,69 @@ def rle[T](s:Seq[T]):List[(T, Int)] =
 
     _rle(s, Nil).reverse
 
+case class LazyChain[T](heads:Seq[T])(_tail: () => Seq[LazyChain[T]]) {
+
+    lazy val tail = _tail()
+
+    def forall(f: T => Boolean):Boolean =
+        heads.forall(f) && tail.forall(_.forall(f))
+
+    // Compare this with a string representation, using a test function, bailing lazily if it fails
+    def stringMatch(input:String)(f: T => String)(compare: (String, String) => Boolean):Int = 
+        val headStrings = heads.map(f).mkString
+        val matchTo = input.take(headStrings.length())
+
+        if compare(headStrings, matchTo) then 
+            val nextInput = input.drop(headStrings.length)
+            if tail.isEmpty then 1 else 
+                tail.map(_.stringMatch(nextInput)(f)(compare)).sum
+        else 0
+}
+
+
+def lazyDistribute[T](value:T, number:Int, into:Seq[(T, Int)])(first:Boolean = false):Seq[LazyChain[(T, Int)]] = 
+    if number == 0 then Seq.empty else 
+        val keep = into.length - 1 // only the first and last buckets can have zero items
+        val start = if first then 0 else 1
+
+        for 
+            n <- start to number - keep
+        yield
+            if into.isEmpty then 
+                LazyChain(Seq(value -> n))(() => Seq.empty)
+            else 
+                LazyChain(Seq(value -> n, into.head))(() => lazyDistribute(value, number - n, into.tail)(false))
+        
+
+
+
+
 def brokenGroups(s:Seq[Boolean]) = 
     rle(s).filter({ (c, n) => !c }).map({ (c, n) => n })
 
 case class ConditionReport(individual:String, byGroup:String) {
 
     val springCount = individual.length
+
+    val brokenCounts = integers.findAllIn(byGroup).map(_.toInt).toSeq
+
+    val brokenFLE = brokenCounts.map((x) => false -> x)
+
+    val totalBroken = brokenCounts.sum
+
+    def gaps = brokenCounts.length - 1
+
+    def spaceToDistribute = springCount - totalBroken
+
+    lazy val possibilities = 
+        val all = lazyDistribute(true, spaceToDistribute, brokenFLE)(true)
+        all.map(_.stringMatch(individual)({ (v, n) => 
+            if v then "." * n else "#" * n 
+        })({ (a, b) =>
+            a.zip(b).forall { (aa, bb) => 
+                aa == bb || aa == '?' || bb == '?'
+            }
+        })).sum
 
     val unknowns = individual.filter(_ == '?').length
 
@@ -63,6 +120,11 @@ case class ConditionReport(individual:String, byGroup:String) {
             case '#' => false
         }
 
+    def pp() = 
+        println(this)
+        println(s"Distribute $spaceToDistribute across $gaps gaps")
+        // println(s"length ${individual.length()} unkowns $unknowns broken $brokenCounts totalling $totalBroken with ${brokenCounts.length - 1} spaces")
+        println()
 
     def compatible = 
         println(s"Calculating compatible for ${this} with ${unknowns} unknowns")
@@ -87,13 +149,22 @@ def decompose(line:String):ConditionReport =
     ConditionReport(unfoldedI, unfoldedG)
 
 @main def main() = 
-    val lines = Source.fromFile("input.txt").getLines().toSeq
+    val lines = Source.fromFile("test.txt").getLines().toSeq
 
     val puzzle = lines.map(decompose)
     println(puzzle.head)
 
     val numUnk = puzzle.map(_.unknowns).max
     println(s"Max is $numUnk unknowns")
+
+
+    val pos = for c <- puzzle yield 
+        c.pp()
+        println(c.possibilities)
+        println("---")
+        c.possibilities
+
+    println(s"Sum is ${pos.sum}")
 
     // val solutions = puzzle.map(_.compatible.size)
     // println(solutions.sum)
