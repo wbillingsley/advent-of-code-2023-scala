@@ -20,9 +20,9 @@ def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
 // false == damaged
 
 // Ye olde run-length-encoding
-def rle[T](s:Seq[T]):Seq[(T, Int)] = 
+def rle[T](s:Seq[T]):List[(T, Int)] = 
     @tailrec
-    def _rle(s:Seq[T], soFar:List[(T, Int)]):Seq[(T, Int)] =
+    def _rle(s:Seq[T], soFar:List[(T, Int)]):List[(T, Int)] =
         if s.isEmpty then soFar else
             val h = s.head
             val seq = s.takeWhile(_ == h)
@@ -37,6 +37,8 @@ case class ConditionReport(individual:String, byGroup:String) {
 
     val springCount = individual.length
 
+    val unknowns = individual.filter(_ == '?').length
+
     def compatibleByCharacter(c:Char, b:Boolean):Boolean = c match {
         case '?' => true
         case '.' => b
@@ -50,31 +52,51 @@ case class ConditionReport(individual:String, byGroup:String) {
         brokenGroups(b).mkString(",") == byGroup   
 
 
-    def compatible = for 
-        i <- 0 until Math.pow(2, springCount).toInt 
-        binary = toBinary(i, springCount) if compatibleA(binary) && compatibleG(binary)
-    yield binary
+    def merge(s:List[Boolean]):Seq[Boolean] = 
+        var cursor = s
+        individual.map { 
+            case '?' => 
+                val h :: t = cursor : @unchecked
+                cursor = t
+                h
+            case '.' => true
+            case '#' => false
+        }
+
+
+    def compatible = 
+        println(s"Calculating compatible for ${this} with ${unknowns} unknowns")
+        for 
+            i <- 0 until Math.pow(2, unknowns).toInt 
+            binary = merge(toBinary(i, unknowns)) if compatibleG(binary)
+        yield binary
 
 }
 
 // take an int, and convert it to a Seq of true/false
-def toBinary(i:Int, l:Int):Seq[Boolean] = 
+def toBinary(i:Int, l:Int):List[Boolean] = 
     val ltr = Seq.tabulate(l) { (x) => 
         (i & (1 << x)) != 0 
     }
-    ltr.reverse
+    ltr.reverse.toList
 
 def decompose(line:String):ConditionReport =
     val Array(indiv, byGroup) = line.split(' ')
-    ConditionReport(indiv, byGroup)
+    val unfoldedI = Seq.fill(5)(indiv).mkString("?")
+    val unfoldedG = Seq.fill(5)(byGroup).mkString(",")
+    ConditionReport(unfoldedI, unfoldedG)
 
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
 
     val puzzle = lines.map(decompose)
+    println(puzzle.head)
 
-    val solutions = puzzle.map(_.compatible.size)
-    println(solutions.sum)
+    val numUnk = puzzle.map(_.unknowns).max
+    println(s"Max is $numUnk unknowns")
+
+    // val solutions = puzzle.map(_.compatible.size)
+    // println(solutions.sum)
 
 
     // May be useful to have this to spot crashes if using watch
