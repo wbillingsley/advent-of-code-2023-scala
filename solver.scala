@@ -30,35 +30,43 @@ def rle[T](s:Seq[T]):List[(T, Int)] =
 
     _rle(s, Nil).reverse
 
-case class LazyChain[T](heads:Seq[T])(_tail: () => Seq[LazyChain[T]]) {
+case class LazyChain[T](heads:Seq[(T, Int)])(_tail: () => Seq[LazyChain[T]]) {
 
-    lazy val tail = _tail()
+    def tail = _tail()
 
-    def forall(f: T => Boolean):Boolean =
-        heads.forall(f) && tail.forall(_.forall(f))
+    def naiveCount(expectedLength:Int):Long = 
+        val hl = heads.map(_._2).sum
+        val t = tail
+        if t.isEmpty then
+            if expectedLength == hl then 1 else 0
+        else t.map(_.naiveCount(expectedLength - hl)).sum
 
-    // Compare this with a string representation, using a test function, bailing lazily if it fails
-    def stringMatch(input:String)(f: T => String)(compare: (String, String) => Boolean)(ret:String = ""):Int = 
-        val headStrings = heads.map(f).mkString
-        val matchTo = input.take(headStrings.length())
 
-        if compare(headStrings, matchTo) then 
-            val nextInput = input.drop(headStrings.length)
-            if tail.isEmpty then             
-                if headStrings.length == input.length then 
-                    // println("+" + ret + headStrings)
-                    1 
-                else 
-                    // println("-" + ret + headStrings)
-                    0
-            else 
-                tail.map(_.stringMatch(nextInput)(f)(compare)(ret + headStrings)).sum
-        else 0
+    // def forall(f: T => Boolean):Boolean =
+    //     heads.forall(f) && tail.forall(_.forall(f))
+
+    // // Compare this with a string representation, using a test function, bailing lazily if it fails
+    // def stringMatch(input:String)(f: T => String)(compare: (String, String) => Boolean)(ret:String = ""):Int = 
+    //     val headStrings = heads.map(f).mkString
+    //     val matchTo = input.take(headStrings.length())
+
+    //     if compare(headStrings, matchTo) then 
+    //         val nextInput = input.drop(headStrings.length)
+    //         if tail.isEmpty then             
+    //             if headStrings.length == input.length then 
+    //                 // println("+" + ret + headStrings)
+    //                 1 
+    //             else 
+    //                 // println("-" + ret + headStrings)
+    //                 0
+    //         else 
+    //             tail.map(_.stringMatch(nextInput)(f)(compare)(ret + headStrings)).sum
+    //     else 0
 
 }
 
 
-def lazyDistribute[T](value:T, number:Int, into:Seq[(T, Int)])(first:Boolean = false):Seq[LazyChain[(T, Int)]] = 
+def lazyDistribute[T](value:T, number:Int, into:Seq[(T, Int)])(first:Boolean = false):Seq[LazyChain[T]] = 
     if number == 0 then Seq.empty else 
         val keep = into.length - 1 // only the first and last buckets can have zero items
         val start = if first then 0 else 1
@@ -73,26 +81,27 @@ def lazyDistribute[T](value:T, number:Int, into:Seq[(T, Int)])(first:Boolean = f
         
 
 
-def lazyDistributeS(value:Boolean, number:Int, into:Seq[(Boolean, Int)])(first:Boolean = false)(check:String):Seq[LazyChain[(Boolean, Int)]] = 
+def lazyDistributeS(value:Boolean, number:Int, into:Seq[(Boolean, Int)])(first:Boolean = false)(check:String):Seq[LazyChain[Boolean]] = 
     if number == 0 then Seq.empty else 
         val keep = into.length - 1 // only the first and last buckets can have zero items
         val start = if first then 0 else 1
 
         val followingHashes = if into.isEmpty then 0 else into.head._2
 
-        for 
-            n <- start to number - keep 
-            frag = check.take(n)
-            after = check.drop(n)
-            if {
-                !frag.contains('#') && // avoid generating the cases where we haven't got the space
-                !after.take(followingHashes).contains('.')
-            }
-        yield
-            if into.isEmpty then 
-                LazyChain(Seq(value -> n))(() => Seq.empty)
-            else 
-                LazyChain(Seq(value -> n, into.head))(() => lazyDistributeS(value, number - n, into.tail)(false)(check.drop(n + into.head._2)))
+        if number == 0 || check.length - followingHashes <= 0 then Seq.empty else 
+            for 
+                n <- start to number - keep 
+                frag = check.take(n)
+                after = check.drop(n)
+                if {
+                    !frag.contains('#') && // avoid generating the cases where we haven't got the space
+                    !after.take(followingHashes).contains('.')
+                }
+            yield
+                if into.isEmpty then 
+                    LazyChain(Seq(value -> n))(() => Seq.empty)
+                else 
+                    LazyChain(Seq(value -> n, into.head))(() => lazyDistributeS(value, number - n, into.tail)(false)(check.drop(n + into.head._2)))
 
 
 
@@ -116,13 +125,14 @@ case class ConditionReport(individual:String, byGroup:String) {
 
     lazy val possibilities = 
         val all = lazyDistributeS(true, spaceToDistribute, brokenFLE)(true)(individual)
-        all.map(_.stringMatch(individual)({ (v, n) => 
-            if v then "." * n else "#" * n 
-        })({ (a, b) =>
-            a.zip(b).forall { (aa, bb) => 
-                aa == bb || aa == '?' || bb == '?'
-            }
-        })("")).sum
+        // all.map(_.stringMatch(individual)({ (v, n) => 
+        //     if v then "." * n else "#" * n 
+        // })({ (a, b) =>
+        //     a.zip(b).forall { (aa, bb) => 
+        //         aa == bb || aa == '?' || bb == '?'
+        //     }
+        // })("")).sum
+        all.map(_.naiveCount(springCount)).sum
 
     val unknowns = individual.filter(_ == '?').length
 
