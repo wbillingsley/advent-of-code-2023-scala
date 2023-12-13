@@ -1,6 +1,6 @@
 // This is the solution for part 2
-// For the solution to part 2, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star19/solver.scala
-// (or select the "star20" branch from GitHub)
+// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star25/solver.scala
+// (or select the "star25" branch from GitHub)
 
 import scala.io.*
 import scala.annotation.tailrec
@@ -28,8 +28,6 @@ def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
         cursor = cursor.drop(puz.length).dropWhile(_.isBlank())
 
     val puzzles = puzzleBuf.toSeq
-
-    val transposed = puzzles.map(_.transpose)
 
     def differences[T](a:Seq[T], b:Seq[T]) = a.zip(b).count(_ != _)
     def sDifferences[T](top:Seq[Seq[T]], bottom:Seq[Seq[T]]) = top.zip(bottom).map({ case (t, b) => differences(t, b)}).sum
