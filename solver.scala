@@ -31,12 +31,15 @@ def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
 
     val transposed = puzzles.map(_.transpose)
 
+    def differences[T](a:Seq[T], b:Seq[T]) = a.zip(b).count(_ != _)
+    def sDifferences[T](top:Seq[Seq[T]], bottom:Seq[Seq[T]]) = top.zip(bottom).map({ case (t, b) => differences(t, b)}).sum
+
     def verticalReflections[T](seq:Seq[Seq[T]]) = {
         for 
             y <- seq.indices if y != 0
             top = seq.take(y).reverse
             bottom = seq.drop(y)
-            zipped = top.zip(bottom) if zipped.forall((a, b) => a == b)
+            diffCount = sDifferences(top, bottom) if diffCount == 1
         yield y
     }
 
