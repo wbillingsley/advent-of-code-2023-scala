@@ -1,6 +1,6 @@
-// This is the solution for part 2
-// For the solution to part 2, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star19/solver.scala
-// (or select the "star20" branch from GitHub)
+// This is the solution for part 1
+// For the solution to part 2, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star26/solver.scala
+// (or select the "star26" branch from GitHub)
 
 import scala.io.*
 import scala.annotation.tailrec
@@ -29,8 +29,6 @@ def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
 
     val puzzles = puzzleBuf.toSeq
 
-    val transposed = puzzles.map(_.transpose)
-
     def verticalReflections[T](seq:Seq[Seq[T]]) = {
         for 
             y <- seq.indices if y != 0
@@ -39,7 +37,6 @@ def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
             zipped = top.zip(bottom) if zipped.forall((a, b) => a == b)
         yield y
     }
-
     
     val puzzleReflections = 
         for 
