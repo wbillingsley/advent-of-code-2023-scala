@@ -1,6 +1,6 @@
-// This is the solution for part 2
-// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star25/solver.scala
-// (or select the "star25" branch from GitHub)
+// This is the solution for part 1
+// For the solution to part 2, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star-28/solver.scala
+// (or select the "star-28" branch from GitHub)
 
 import scala.io.*
 import scala.annotation.tailrec
