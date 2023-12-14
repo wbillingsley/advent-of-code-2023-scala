@@ -18,7 +18,7 @@ def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
 
 
 @main def main() = 
-    val lines = Source.fromFile("test.txt").getLines().toSeq
+    val lines = Source.fromFile("input.txt").getLines().toSeq
 
     // Just one grid today
     val puzzle:Seq[Seq[Char]] = lines.map(_.toSeq)
@@ -108,13 +108,35 @@ def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
     pp(c)
 
     var p = puzzle
-    for i <- 1 to 1000000000 do 
-        println(s"Rotation $i loads ${loads(p)}")
+    val loadsBuffer = mutable.Buffer.empty[Int]
+
+    // Just do a few 
+    for i <- 1 to 100 do
         p = cycle(p)
+        val l = loads(p)
+        println(s"Rotation $i loads ${loads(p)}")
+        loadsBuffer.append(l)
 
-    println(loads(p))
-
+    def cycled(s:Seq[Int]):Option[Seq[Int]] = 
+        (1 until s.length / 4).find((n) =>            
+            s.take(n) == s.drop(n).take(n)
+        ).map(s.take(_))
     
+    var cyc:Option[Seq[Int]] = None
+
+    while 
+        cyc = cycled(loadsBuffer.toSeq.reverse)
+        cyc.isEmpty
+    do 
+        p = cycle(p)
+        val l = loads(p)
+        println(s"Rotation ${loadsBuffer.length} loads ${loads(p)}")
+        loadsBuffer.append(l)
+
+    println(s"cycled - ${loadsBuffer.length} rotations, cycle length ${cyc.get.length}, ${cyc.get} ")
+    val last = loadsBuffer.length
+    val entry = (1000000000 - last) % cyc.get.length
+    println("Result " + cyc.get.reverse(entry - 1))
 
     
 
