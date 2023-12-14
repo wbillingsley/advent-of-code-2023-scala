@@ -18,10 +18,10 @@ def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
 
 
 @main def main() = 
-    val lines = Source.fromFile("input.txt").getLines().toSeq
+    val lines = Source.fromFile("test.txt").getLines().toSeq
 
     // Just one grid today
-    val puzzle = lines.map(_.toSeq)
+    val puzzle:Seq[Seq[Char]] = lines.map(_.toSeq)
 
     val transposed = puzzle.transpose
 
@@ -49,16 +49,70 @@ def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
         println(s"Calculated rock loads $loads")
         loads.sum
 
-    val loads = for line <- transposed yield 
-        val rolled = rollLine(line)
-        val loads = for (o, y) <- rolled.zipWithIndex if o == 'O' yield line.length - y
-        loads.sum
+    def north(p:Seq[Seq[Char]]) = 
+        val pp = p.transpose
+        val ppp = for l <- pp yield rollLine(l)
+        ppp.transpose
+
+    def west(p:Seq[Seq[Char]]) = 
+        for l <- p yield rollLine(l)
+
+    def south(p:Seq[Seq[Char]]) = 
+        val pp = p.transpose.map(_.reverse)
+        val ppp = for l <- pp yield rollLine(l)
+        ppp.map(_.reverse).transpose
+
+    def east(p:Seq[Seq[Char]]) = 
+        val pp = p.map(_.reverse)
+        val ppp = for l <- pp yield rollLine(l)
+        ppp.map(_.reverse)
+
+    def loads(s:Seq[Seq[Char]]) = 
+        val p = s.transpose
+        (for 
+            line <- p
+            (o, y) <- line.zipWithIndex if o == 'O'
+        yield line.length - y).sum
+        
+
+    // val loads = for line <- transposed yield 
+    //     val rolled = rollLine(line)
+    //     val loads = for (o, y) <- rolled.zipWithIndex if o == 'O' yield line.length - y
+    //     loads.sum
 
 
+    //println(rollLine("OO...O.#..O..O..".toSeq))
 
-    println(rollLine("OO...O.#..O..O..".toSeq))
+    println(s"North loads is ${loads(north(puzzle))}")
 
-    println(loads.sum)
+    def pp(p:Seq[Seq[Char]]) = 
+        for line <- p do println(line.mkString)
+
+    def cycle(p:Seq[Seq[Char]]) = 
+        val n = north(p)
+        // println("North")
+        // pp(n)
+        val w = west(n)
+        // println("West")
+        // pp(w)
+        val s = south(w)
+        // println("South")
+        // pp(s)
+        val e = east(s)
+        // println("East")
+        // pp(e)
+        e
+
+    val c = cycle(cycle(cycle(puzzle)))
+    println("----")
+    pp(c)
+
+    var p = puzzle
+    for i <- 1 to 1000000000 do 
+        println(s"Rotation $i loads ${loads(p)}")
+        p = cycle(p)
+
+    println(loads(p))
 
     
 
