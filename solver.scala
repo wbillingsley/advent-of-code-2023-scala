@@ -20,40 +20,6 @@ def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
 
-    val puzzleBuf = mutable.Buffer.empty[Seq[Seq[Char]]]
-    var cursor = lines
-    while (!cursor.isEmpty) do
-        val puz = cursor.takeWhile(!_.isBlank()).map(_.toSeq)
-        puzzleBuf.append(puz)
-        cursor = cursor.drop(puz.length).dropWhile(_.isBlank())
-
-    val puzzles = puzzleBuf.toSeq
-
-    def differences[T](a:Seq[T], b:Seq[T]) = a.zip(b).count(_ != _)
-    def sDifferences[T](top:Seq[Seq[T]], bottom:Seq[Seq[T]]) = top.zip(bottom).map({ case (t, b) => differences(t, b)}).sum
-
-    def verticalReflections[T](seq:Seq[Seq[T]]) = {
-        for 
-            y <- seq.indices if y != 0
-            top = seq.take(y).reverse
-            bottom = seq.drop(y)
-            diffCount = sDifferences(top, bottom) if diffCount == 1
-        yield y
-    }
-
-    
-    val puzzleReflections = 
-        for 
-            p <- puzzles
-            vert = verticalReflections(p)
-            horiz = verticalReflections(p.transpose)
-        yield 
-            val hScore = if horiz.isEmpty then 0 else horiz(0)
-            val vScore = if vert.isEmpty then 0 else 100 * vert(0)
-            hScore + vScore
-
-    println(puzzleReflections.sum)
-
 
     // May be useful to have this to spot crashes if using watch
     println("Re-ran at: " + java.util.Date().toLocaleString())
