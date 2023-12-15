@@ -17,8 +17,18 @@ def allIntegersIn(s:String) = integers.findAllIn(s).map(_.toLong).toSeq
 def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
 
 
+def hashScore(s:String) = 
+    s.foldLeft(0) { case (t, c) => 
+        (t + c) * 17 % 256
+    }
+
 @main def main() = 
-    val lines = Source.fromFile("input.txt").getLines().toSeq
+    val lines = Source.fromFile("test.txt").getLines().toSeq
+
+    val puz = lines(0)
+    val strings = puz.split(',')
+    println("Result is " + strings.map(hashScore).sum)
+
 
     // May be useful to have this to spot crashes if using watch
     println("Re-ran at: " + java.util.Date().toLocaleString())
