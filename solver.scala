@@ -23,7 +23,6 @@ type Beam = (Coord, Coord)
     val lines = Source.fromFile("input.txt").getLines().toSeq
 
     val puz:Seq[Seq[Char]] = lines.map(_.toSeq)
-    var energised = Set.empty[Beam]
 
     def puzContains(p:Coord):Boolean = 
         val (x, y) = p
@@ -33,9 +32,12 @@ type Beam = (Coord, Coord)
         val (x, y) = coord
         puz(y)(x)
 
-    val beams:Seq[Beam] = Seq((0, 0) -> East)
-    def traverse() = 
+    def traverse(start:(Coord, Coord)):Int =
+        val beams:Seq[Beam] = Seq(start)
+        var energised = Set.empty[Beam]
+
         var b = beams
+        println("before")
         while !b.isEmpty do 
             b.foreach { (beam) => energised = energised + beam }
             b = (b.flatMap { (p, dir) => 
@@ -74,9 +76,22 @@ type Beam = (Coord, Coord)
 
             }).filter((beam) => !energised.contains(beam) && puzContains(beam._1))
 
-    println("before")
-    traverse()
-    println(energised.map((beam, dir) => beam).size)
+        energised.map((beam, dir) => beam).size
+
+
+    val maxY = puz.indices.last
+    val starts = 
+        puz.indices.map((y) => (0, y) -> East) ++ 
+        puz.indices.map((y) => (puz(y).indices.last, y) -> West) ++
+        puz(0).indices.map((x) => (x, 0) -> South) ++ 
+        puz(maxY).indices.map((x) => (x, maxY) -> North) 
+
+
+    println("Check " + traverse((0, 0) -> East))
+
+    val result = starts.map(traverse).max
+    println("result " + result)
+    
 
 
 
