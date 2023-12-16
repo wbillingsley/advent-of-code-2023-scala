@@ -17,45 +17,68 @@ val decimals = "(-?\\d+)([.]\\d+)?".r
 def allIntegersIn(s:String) = integers.findAllIn(s).map(_.toLong).toSeq
 def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
 
-
-def hashScore(s:String) = 
-    s.foldLeft(0) { case (t, c) => 
-        (t + c) * 17 % 256
-    }
-
-case class Label(l:String, n:Int)
+type Beam = (Coord, Coord)
 
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
 
-    val puz = lines(0)
-    val strings = puz.split(',')
-    // println("Result is " + strings.map(hashScore).sum)
+    val puz:Seq[Seq[Char]] = lines.map(_.toSeq)
+    var energised = Set.empty[Beam]
 
-    var arrangement:Map[Int, Queue[Label]] = (for i <- 0 until 256 yield i -> Queue.empty).toMap
+    def puzContains(p:Coord):Boolean = 
+        val (x, y) = p
+        puz.indices.contains(y) && puz(y).indices.contains(x)
 
-    strings.foreach {
-        case s"$l-" => 
-            val box = hashScore(l)
-            arrangement = arrangement.updated(box, arrangement(box).filter(_.l != l))
-            ()
-        case s"$l=$n" =>
-            val focal = n.toInt
-            val box = hashScore(l)
-            val old = arrangement(box).indexWhere(_.l == l)
-            if old >= 0 then 
-                arrangement = arrangement.updated(box, arrangement(box).updated(old, Label(l, focal)))
-            else 
-                arrangement = arrangement.updated(box, arrangement(box).enqueue(Label(l, focal)))
+    def charAt(coord:Coord):Char = 
+        val (x, y) = coord
+        puz(y)(x)
 
-    }
+    val beams:Seq[Beam] = Seq((0, 0) -> East)
+    def traverse() = 
+        var b = beams
+        while !b.isEmpty do 
+            b.foreach { (beam) => energised = energised + beam }
+            b = (b.flatMap { (p, dir) => 
+                (charAt(p), dir) match {
+                    case ('.', _) => 
+                        Seq((p + dir, dir))
 
-    val overallScore = (for 
-        (boxNum, q) <- arrangement
-        (lens, order) <- q.zipWithIndex
-    yield (boxNum + 1) * (order + 1) * lens.n).sum
+                    case ('/', East) => 
+                        Seq((p + North, North))
+                    case ('/', West) => 
+                        Seq((p + South, South))
+                    case ('/', North) => 
+                        Seq((p + East, East))
+                    case ('/', South) => 
+                        Seq((p + West, West))
 
-    println("overall " + overallScore)
+                    case ('\\', East) => 
+                        Seq((p + South, South))
+                    case ('\\', West) => 
+                        Seq((p + North, North))
+                    case ('\\', North) => 
+                        Seq((p + West, West))
+                    case ('\\', South) => 
+                        Seq((p + East, East))
+
+                    case ('-', East) => Seq(((p + dir), dir))
+                    case ('-', West) => Seq(((p + dir), dir))
+                    case ('|', North) => Seq(((p + dir), dir))
+                    case ('|', South) => Seq(((p + dir), dir))
+
+                    case ('-', North) => Seq(((p + East), East), ((p + West), West) )
+                    case ('-', South) => Seq(((p + East), East), ((p + West), West) )
+                    case ('|', East) => Seq(((p + North), North), ((p + South), South))
+                    case ('|', West) => Seq(((p + North), North), ((p + South), South))
+                }
+
+            }).filter((beam) => !energised.contains(beam) && puzContains(beam._1))
+
+    println("before")
+    traverse()
+    println(energised.map((beam, dir) => beam).size)
+
+
 
 
 
