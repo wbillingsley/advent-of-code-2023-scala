@@ -34,7 +34,9 @@ def ninetyDegrees(heading:Coord):Seq[Coord] = heading match {
 def possibilities(s:Step):Seq[Step] = {
     val (p, head, c) = s
     if s._2 == (0,0) then Seq((p + North, North, 1), (p + East, East, 1), (p + South, South, 1), (p + West, West, 1)) // starting case
-    else if c >= 3 then 
+    else if c < 4 then 
+        Seq((p + head, head, c + 1))
+    else if c >= 10 then 
         for d <- ninetyDegrees(head) yield (p + d, d, 1)
     else (p + head, head, c + 1) +: (for d <- ninetyDegrees(head) yield (p + d, d, 1)) 
 }
@@ -86,7 +88,7 @@ def possibilities(s:Step):Seq[Step] = {
     println("before")
     val memo = traverse()
     println(memo.size)
-    val result = memo.filter({ (step, d) => step._1 == (maxX, maxY) }).minBy(_._2)
+    val result = memo.filter({ (step, d) => step._1 == (maxX, maxY) && step._3 >= 4 && step._3 <= 10 }).minBy(_._2)
     println(s"Result $result")
 
 
