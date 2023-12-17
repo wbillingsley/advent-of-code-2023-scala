@@ -31,14 +31,43 @@ def ninetyDegrees(heading:Coord):Seq[Coord] = heading match {
 }
 
 // allowable moves
-def possibilities(s:Step):Seq[Step] = {
+def possibilities(s:Step, cost:Int, valid: Coord => Boolean, costAt: Coord => Int, _memo:Map[Step, Int], limit:Int):(Map[Step, Int], Seq[(Step, Int)]) = {
+
+    def over(cost:Int) = cost >= limit
+    var memo = _memo
+
     val (p, head, c) = s
-    if s._2 == (0,0) then Seq((p + North, North, 1), (p + East, East, 1), (p + South, South, 1), (p + West, West, 1)) // starting case
+    val poss = if s._3 == 0 then 
+        for 
+            d <- Seq(East, South)
+            square <- 4 to 10
+            dd = d * square 
+            pp = p + dd if valid(pp)
+            tripCost = (for i <- 1 to square yield costAt(p + (d * i))).sum 
+            totalCost = cost + tripCost if !over(totalCost) && (!memo.contains(pp, d, square) || memo(pp, d, square) > totalCost)
+        yield 
+            memo = memo.updated((pp, d, square), totalCost)
+            (pp, d, square) -> totalCost
     else if c < 4 then 
-        Seq((p + head, head, c + 1))
-    else if c >= 10 then 
-        for d <- ninetyDegrees(head) yield (p + d, d, 1)
-    else (p + head, head, c + 1) +: (for d <- ninetyDegrees(head) yield (p + d, d, 1)) 
+        for 
+            s <- Seq((p + head, head, c + 1)) if valid(s._1) 
+        yield s -> (cost + costAt(s._1))
+    else //if c >= 10 then 
+        for 
+            d <- ninetyDegrees(head) 
+            square <- 4 to 10
+            dd = d * square 
+            pp = p + dd if valid(pp)
+            tripCost = (for i <- 1 to square yield costAt(p + (d * i))).sum 
+            totalCost = cost + tripCost if !over(totalCost) && (!memo.contains(pp, d, square) || memo(pp, d, square) > totalCost)
+        yield 
+            memo = memo.updated((pp, d, square), totalCost)
+            (pp, d, square) -> totalCost
+
+    (memo, poss)
+    // else Seq.empty
+        // for 
+        //     s <- (p + head, head, c + 1) +: (for d <- ninetyDegrees(head) yield (p + d, d, 1)) 
 }
 
 
@@ -66,16 +95,20 @@ def possibilities(s:Step):Seq[Step] = {
     def traverse() = 
         var b = paths
         var memo = Map.empty[Step, Int]
+        var limit = Int.MaxValue
         while !b.isEmpty do 
             // println(b)
             //b.foreach { (step, dist) => memo = memo.updated(step, dist) }
+
             b = (b.flatMap { (step, dist) => 
+                val (newMemo, poss) = possibilities(step, dist, puzContains, distAt, memo, limit) 
+                memo = newMemo
 
                 for 
-                    next <- possibilities(step) if puzContains(next._1)                     
-                    nextD = dist + distAt(next._1) if !memo.contains(next) || memo(next) > nextD
+                    (next, nextD) <- poss // if puzContains(next._1) && (!memo.contains(next) || memo(next) > nextD)
                 yield 
-                    memo = memo.updated(next, nextD)
+                    //memo = memo.updated(next, nextD)
+                    if next._1 == (maxX, maxY) && nextD < limit then limit = nextD
                     (next, nextD)
 
             })
