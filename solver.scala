@@ -49,10 +49,13 @@ def decompose2(line:String) =
     (hexDir, hexDistParsed.toInt, "#")
 
 
+// An edge in the puzzle, formed by carving a line in some direction
 type Edge = (Coord, Coord, Coord, Coord) // (from, to, dir1, dir2). the last two aren't strictly necessary, but we might as well
 
+// A region bounded by two points. We are inclusive of the top-left, and exclusive of the bottom-right
 type Region = (Coord, Coord)
 
+// Region maths
 extension (r:Region) {
     def x1 = Math.min(r._1._1, r._2._1)
     def x2 = Math.max(r._1._1, r._2._1)
@@ -105,7 +108,6 @@ extension (e:Edge) {
 
     // We need to keep a set of edges.
     var cursor:Coord = (0, 0)
-
     var edges = mutable.Set.empty[Edge]
     for 
         (dir, dist, col) <- instructions
@@ -118,11 +120,14 @@ extension (e:Edge) {
 
     // println(edges)
 
+    // We only care about the points at the ends of edges. As it's a loop, we can just take the "from" point for every edge, and that'll get them all
     val points = edges.map(_._1)
 
+    // debugging
     val xAddresses = points.map(_._1).toSeq.sorted
     val yAddresses = points.map(_._2).toSeq.sorted
 
+    // axis aligned bounds, for use in debug pretty-printing for small puzzles
     val minX = xAddresses.min
     val maxX = xAddresses.max
     val minY = yAddresses.min
@@ -130,12 +135,15 @@ extension (e:Edge) {
 
     println(s"---($minX $minY) to ($maxX $maxY), with ${edges.size} edges")
 
-    // edges going south
+    // All edges going south that intersect with a y-value.
+    // Let's use south so we can be consistent on whether the end point is included or not
     def sedgesAt(y:Int) = 
         edges.filter({ (e) => 
             e.maxY > y && e.minY <= y  
         }).toSeq.sortBy(_.minX)
 
+    // edges going east/west
+    // We need these because otherwise we'll end up double-counting some of them
     def hedgesAt(y:Int) = 
         edges.filter({ case (from, to, dir, idir) => 
             (
@@ -144,64 +152,55 @@ extension (e:Edge) {
         })
 
 
+    // The length of the path itself is going to be one of our components
     def edgeLength = instructions.map(_._2).sum
 
-
-    // There's about a million edges, but it's quick per edge
-    var count = 0L
-    
+    // We're going to look at whole blocks of y-lines at once, by taking y-regions in the range [y1, y2)
+    // We can do this with a zip, but I've added on to the tail just in case we were missing anything about the last line (though I don't think it's necessary)
     val zippedYs = yAddresses.zip(yAddresses.tail) :+ (maxY, maxY + 1)
 
     // The regions contained within the lines,
-    // plus the "double counted" edge regions
+    // plus the "double counted" edge regions, because the edge forms part of our area but part of it is also inside the contained area we'll calculate.
     val containedRegionsByY:Seq[(Seq[(Coord, Coord)], Seq[(Coord, Coord)])] = for (y1, y2) <- zippedYs yield
-        // sort the edges by their lowest x index
-        val edges = sedgesAt(y1).toSeq.sortBy((e) => Math.min(e._1._1, e._2._1))
+        
+        // edges going south that intersect with y1
+        // (and therefore intersect with every y value before y2)
+        val verticals = sedgesAt(y1).toSeq.sortBy((e) => Math.min(e._1._1, e._2._1))
 
+        // every horizontal line on y1
         val horizontals = hedgesAt(y1).toSeq.sortBy((e) => Math.min(e._1._1, e._2._1))
-        val verticals =  edges //edges.filter { case (from, to, dir, idir) => dir == North || idir == North }
 
+        // Use parity to get x-ranges bounded within the vertical edges
         val verticallyContainedRanges = 
             for 
                 ((e1, e2), i) <- (if verticals.nonEmpty then verticals.zip(verticals.tail) else Nil).zipWithIndex if i % 2 == 0
             yield
                 (e1.minX, e2.maxX)
 
-        // rectangular regions
+        // rectangular regions representing those contained areas.
+        // Note that we add 1 to x1, so that we don't include the vertical line itself
         val regions = for (x1, x2) <- verticallyContainedRanges yield (x1 + 1, y1) -> (x2, y2)
 
-        val lineRegions = for e <- horizontals yield (e.minX, y1) -> (e.maxX + 1, y1 + 1)
+        // Represent each horizontal line as a region
+        val hLineRegions = for e <- horizontals yield (e.minX, y1) -> (e.maxX + 1, y1 + 1)
 
+        // Now get the intersect of those horizontal regions with our contained region (i.e. what we'll "double count" when we add the line edge itself later)
         val enclosedHorizontals = for 
-            lr <- lineRegions 
+            lr <- hLineRegions 
             intersecting <- regions.find((r) => r.intersects(lr))
         yield 
              intersecting.intersect(lr)
 
         (regions, enclosedHorizontals)
 
-        // val doubleCounted = enclosedHorizontals.map((a, b) => b - a).sum
 
-
-        // val enclosedPerLine = verticallyContainedRanges.map((x1, x2) => x2 - x1 - 1).sum
-
-        // println(s"Verticles at $y1 to $y2 are $verticals enclosing $enclosedPerLine capturing $enclosedHorizontals")
-
-
-        // enclosedPerLine * (y2 - y1) - doubleCounted // + (unenclosedHorizontals.map(_.inclusiveLength).sum)
-
+    // What we decided was contained by the vertical edges
     val insides = containedRegionsByY.map(_._1).flatten
+
+    // The parts of the horizontal lines that intersect with the area contained by the vertical edges (the double-count)
     val doubleCountedEdgeRegions = containedRegionsByY.map(_._2).flatten
 
-    // // To find the north crossings efficiently, we need to find the edges
-    // val insideInclusive = for 
-    //     y <- minY to maxY
-    //     x <- minX to maxX
-    //     northCrossingsGoingEast = (for xx <- x to maxX if map.get((xx, y)).exists({ 
-    //         case (from, to, _) => from == North || to == North
-    //     }) yield 1).sum if map.contains((x, y)) || northCrossingsGoingEast % 2 == 1
-    // yield (x, y)
-
+    // For pretty-printing small maps
     def pp() = 
         val edgePoints = mutable.Set.empty[Coord]
         for 
@@ -247,17 +246,13 @@ extension (e:Edge) {
 
     // pp()
         
+    // Area contained by the verticals
     val insideArea = insides.map(_.area).sum
+
+    // Intersect between that and the edges
     val dbl = doubleCountedEdgeRegions.map(_.area).sum
 
-    // println(doubleCountedEdgeRegions.mkString("\n"))
-
     println(s" Inside area $insideArea  edge length $edgeLength  double counted $dbl ==> ${insideArea + edgeLength - dbl}")
-
-    //pp()
-
-    // println("Result " + insideInclusive.length)
-
 
 
     // May be useful to have this to spot crashes if using watch
