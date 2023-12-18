@@ -60,6 +60,11 @@ extension (e:Edge) {
     def inclusiveLength = e.maxY - e.minY + e.maxX - e.minX + 1
     def exclusiveLength = e.maxY - e.minY + e.maxX - e.minX 
 
+    def isHorizontal:Boolean = 
+        e._3 == East || e._4 == East
+
+
+
 }
 
 @main def main() = 
@@ -117,44 +122,42 @@ extension (e:Edge) {
     
     val zippedYs = yAddresses.zip(yAddresses.tail) :+ (maxY, maxY + 1)
 
-    val insides = for (y1, y2) <- zippedYs yield
+    val containedRegionsByY:Seq[Seq[(Coord, Coord)]] = for (y1, y2) <- zippedYs yield
         // sort the edges by their lowest x index
         val edges = sedgesAt(y1).toSeq.sortBy((e) => Math.min(e._1._1, e._2._1))
-
-        def isHorizontal(e:Edge):Boolean = 
-            val (from, to, dir, idir) = e
-            idir == East || dir == East
 
         val horizontals = hedgesAt(y1)
         val verticals =  edges //edges.filter { case (from, to, dir, idir) => dir == North || idir == North }
 
-        var parity = true
         val verticallyContainedRanges = 
             for 
-                (e1, e2) <- (if verticals.nonEmpty then verticals.zip(verticals.tail) else Nil) if parity
+                ((e1, e2), i) <- (if verticals.nonEmpty then verticals.zip(verticals.tail) else Nil).zipWithIndex if i % 2 == 0
             yield
-                parity = !parity
                 (e1.minX, e2.maxX)
 
-        val enclosedHorizontals = 
-            for 
-                e <- horizontals 
-                (r1, r2) <- verticallyContainedRanges if r1 <= e.minX && r2 >= e.maxX
-            yield 
-                Math.max(e.minX, r1 + 1) -> Math.min(e.maxX + 1, r2) 
+        // rectangular regions
+        for (x1, x2) <- verticallyContainedRanges yield (x1 + 1, y1) -> (x2, y2)
 
-        val doubleCounted = enclosedHorizontals.map((a, b) => b - a).sum
+        // val enclosedHorizontals = 
+        //     for 
+        //         e <- horizontals 
+        //         (r1, r2) <- verticallyContainedRanges if r1 <= e.minX && r2 >= e.maxX
+        //     yield 
+        //         Math.max(e.minX, r1 + 1) -> Math.min(e.maxX + 1, r2) 
 
-
-        val enclosedPerLine = verticallyContainedRanges.map((x1, x2) => x2 - x1 - 1).sum
-
-        println(s"Verticles at $y1 to $y2 are $verticals enclosing $enclosedPerLine capturing $enclosedHorizontals")
+        // val doubleCounted = enclosedHorizontals.map((a, b) => b - a).sum
 
 
-        enclosedPerLine * (y2 - y1) - doubleCounted // + (unenclosedHorizontals.map(_.inclusiveLength).sum)
+        // val enclosedPerLine = verticallyContainedRanges.map((x1, x2) => x2 - x1 - 1).sum
+
+        // println(s"Verticles at $y1 to $y2 are $verticals enclosing $enclosedPerLine capturing $enclosedHorizontals")
 
 
-    println(s"Strictly inside is ${insides.sum} edge is $edgeLength  total is ${insides.sum + edgeLength}")
+        // enclosedPerLine * (y2 - y1) - doubleCounted // + (unenclosedHorizontals.map(_.inclusiveLength).sum)
+
+    val insides = containedRegionsByY.flatten
+
+    //println(s"Strictly inside is ${insides.sum} edge is $edgeLength  total is ${insides.sum + edgeLength}")
 
     pp()
 
@@ -176,13 +179,25 @@ extension (e:Edge) {
         do 
             edgePoints.add((x, y))
 
+        val innards = mutable.Set.empty[Coord]
+        for 
+            ((x1, y1), (x2, y2)) <- insides.toSeq
+            x <- x1 until x2
+            y <- y1 until y2
+        do 
+            innards.add((x, y))
+
         println(s"---($minX $minY) to ($maxX $maxY)")
         for 
             y <- minY to maxY
         do     
             for x <- minX to maxX do
-                if edgePoints.contains((x, y)) then
+                if edgePoints.contains((x, y)) && innards.contains((x, y)) then
+                    print("!")
+                else if edgePoints.contains((x, y)) then
                     print("#")
+                else if innards.contains((x, y)) then
+                    print("x")
                 else print(".")
             println()
 
