@@ -43,7 +43,21 @@ def possibilities(s:Step):Seq[Step] = {
 
 
 // Parses a line of puzzle
-def decompose(line:String) = 
+def decompose1(line:String) = 
+    val s"$dir $dist (#$col)" = line
+
+    val parsedDir = dir match {
+        case "R" => East
+        case "U" => North
+        case "D" => South
+        case "L" => West
+    }
+    (parsedDir, dist.toInt, col)
+
+
+
+// Parses a line of puzzle
+def decompose2(line:String) = 
     val s"$dir $dist (#$col)" = line
 
     val hexDist = col.take(5)
@@ -65,65 +79,117 @@ def decompose(line:String) =
         case "D" => South
         case "L" => West
     }
-    (hexDir, hexDistParsed.toInt, col)
+    (hexDir, hexDistParsed.toInt, "#")
 
 @main def main() = 
-    val lines = Source.fromFile("input.txt").getLines().toSeq
+    val lines = Source.fromFile("test.txt").getLines().toSeq
 
-    val instructions = lines.map(decompose)
+    val instructions = lines.map(decompose1)
 
     println(instructions(0))
 
     var cursor:Coord = (0, 0)
-    var last:Option[Coord] = None
     // coordinate, edge-from, edge-to
-    var map = mutable.Map.empty[(Coord), (Coord, Coord, String)]
+
+    // We need to keep a set of edges.
+
+    println((6, 0) + ((0, 1) * 5))
+
+    type Edge = (Coord, Coord, Coord, Coord) // (from, to, dir1, dir2). the last two aren't strictly necessary, but we might as well
+    var edges = mutable.Set.empty[Edge]
     for 
         (dir, dist, col) <- instructions
-        i <- 1 to dist
     do
-        cursor = cursor + dir
-        map(cursor) = (dir.inverse, (0, 0), col)
-        for l <- last do 
-            val (from, zero, col) = map(l)
-            map(l) = (from, dir, col)
-        last = Some(cursor)
-
-    val minX = map.keySet.map(_._1).min
-    val minY = map.keySet.map(_._2).min
-
-    val maxX = map.keySet.map(_._1).max
-    val maxY = map.keySet.map(_._2).max
+        val next = cursor + (dir * dist)
+        println(s"From $cursor to $next in $dir")
+        edges.add((cursor, next, dir, dir.inverse))
+        cursor = next
 
 
-    // count what's inside the loop
-    val insideInclusive = for 
-        y <- minY to maxY
-        x <- minX to maxX
-        northCrossingsGoingEast = (for xx <- x to maxX if map.get((xx, y)).exists({ 
-            case (from, to, _) => from == North || to == North
-        }) yield 1).sum if map.contains((x, y)) || northCrossingsGoingEast % 2 == 1
-    yield (x, y)
+    println(edges)
 
-    def pp() = 
-        println(s"---($minX $minY) to ($maxX $maxY)")
-        for 
-            y <- minY to maxY
-        do     
-            for x <- minX to maxX do
-                if map.contains((x, y)) then
-                    val (from, to, col) = map((x, y))
-                    print("#")
-                else if insideInclusive.contains((x, y)) then 
-                    print("o")
-                else print(".")
-            println()
+    val points = edges.map(_._1)
+
+    val xAddresses = points.map(_._1).toSeq.sorted
+    val yAddresses = points.map(_._2).toSeq.sorted
+
+    val maxX = xAddresses.max
+    val maxY = xAddresses.max
+    val minX = yAddresses.min
+    val minY = yAddresses.min
+
+    println(s"---($minX $minY) to ($maxX $maxY), with ${edges.size} edges")
+
+    // Only get edges we're strictly within. We'll add the edges separately
+    def northEdges(y:Int) = 
+        edges.filter({ case (from, to, dir, idir) => 
+
+            (dir == North) &&             // going north
+            (
+                (from._2 <= y && to._2 >= y) ||      // contains y
+                (to._2 <= y && from._2 >= y)
+            )
+            
+        })
+
+    def edgeLength = instructions.map(_._2).sum
+
+    println(edgeLength)
+
+
+    // There's about a million edges, but it's quick per edge
+    var count = 0L
+    
+    val zippedYs = yAddresses.zip(yAddresses.tail)
+
+    val insides = for (y1, y2) <- zippedYs yield
+        val edges = northEdges(y2) 
+
+        println(s"Edges from $y1 to $y2 are $edges")
+
+
+        val edgeXs = edges.toSeq.map(_._1._1).sorted // sort edges based on x position; we no longer need y
+        val zipped = if edgeXs.nonEmpty then edgeXs.zip(edgeXs.tail) else Nil
+        var parity = false
+        val covered = zipped.foldLeft(0) { case (tot, (a, b)) => 
+            parity = !parity
+            if parity then tot + b - a else tot
+        }
+
+        covered.toLong * (y2 - y1 + 1)
+
+
+    println(insides.sum + edgeLength)
+
+
+    // // To find the north crossings efficiently, we need to find the edges
+    // val insideInclusive = for 
+    //     y <- minY to maxY
+    //     x <- minX to maxX
+    //     northCrossingsGoingEast = (for xx <- x to maxX if map.get((xx, y)).exists({ 
+    //         case (from, to, _) => from == North || to == North
+    //     }) yield 1).sum if map.contains((x, y)) || northCrossingsGoingEast % 2 == 1
+    // yield (x, y)
+
+    // def pp() = 
+    //     println(s"---($minX $minY) to ($maxX $maxY)")
+    //     for 
+    //         y <- minY to maxY
+    //     do     
+    //         for x <- minX to maxX do
+    //             if map.contains((x, y)) then
+    //                 val (from, to, col) = map((x, y))
+    //                 print("#")
+    //             else if insideInclusive.contains((x, y)) then 
+    //                 print("o")
+    //             else print(".")
+    //         println()
 
         
 
     //pp()
 
-    println("Result " + insideInclusive.length)
+    // println("Result " + insideInclusive.length)
 
 
 

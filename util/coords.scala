@@ -9,6 +9,9 @@ extension (c:Coord) {
         (xx + x, yy + y)
 
     def inverse = (-c._1, -c._2)
+
+    def * (s:Int) = 
+        (c._1 * s, c._2 * s)
 }
 
 val North = (0, -1)
