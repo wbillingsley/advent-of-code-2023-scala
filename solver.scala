@@ -139,15 +139,13 @@ extension (e:Edge) {
         edges.filter({ (e) => 
             e.maxY > y && e.minY <= y  
         }).toSeq.sortBy(_.minX)
-    
-    // The length of the path itself is going to be one of our components
-    def edgeLength = instructions.map(_._2).sum
 
     // We're going to look at whole blocks of y-lines at once, by taking y-regions in the range [y1, y2)
     // We can do this with a zip, but I've added on to the tail just in case we were missing anything about the last line (though I don't think it's necessary)
     val zippedYs = yAddresses.zip(yAddresses.tail) :+ (maxY, maxY + 1)
 
-    val insides:Seq[Region] = (for (y1, y2) <- zippedYs yield {
+    // Use the points (and parity) to get a set of regions that includes their boundaries. We'll deal with the boundaries by intersecting them later.
+    val inclusiveRectangles:Seq[Region] = (for (y1, y2) <- zippedYs yield {
         val verticals = sedgesAt(y1).toSeq.sortBy((e) => e.x1)
 
         // Use parity to get x-ranges bounded within the vertical edges. Go one sq down and in to avoid including any lines
@@ -160,58 +158,17 @@ extension (e:Edge) {
         verticallyContainedRegions
     }).flatten
 
-    val dbl = insides.combinations(2).filter({ case Seq(a, b) => a.intersects(b) }).map({ case Seq(a, b) => a.intersect(b) })
-
-    // println("in " + insides)
-    // println("d " + dbl)
-
-    // // For pretty-printing small maps
-    // def pp() = 
-    //     val ipoints = mutable.Map.empty[Coord, Int]
-    //     for 
-    //         e <- edges.toSeq
-    //         x <- e.minX to e.maxX
-    //         y <- e.minY to e.maxY
-    //     do 
-    //         ()
-    //         //ipoints((x, y)) = ipoints.getOrElse((x, y), 0) + 1
-
-    //     val innards = mutable.Set.empty[Coord]
-    //     for 
-    //         ((x1, y1), (x2, y2)) <- insides.toSeq
-    //         x <- x1 until x2
-    //         y <- y1 until y2
-    //     do 
-    //         ipoints((x, y)) = ipoints.getOrElse((x, y), 0) + 1
-
-    //     // val dbl = mutable.Set.empty[Coord]
-    //     // for 
-    //     //     ((x1, y1), (x2, y2)) <- doubleCountedEdgeRegions.toSeq
-    //     //     x <- x1 until x2
-    //     //     y <- y1 until y2
-    //     // do 
-    //     //     dbl.add((x, y))
-
-
-    //     println(s"---($minX $minY) to ($maxX $maxY)")
-    //     for 
-    //         y <- minY to maxY
-    //     do     
-    //         for x <- minX to maxX do
-    //             print(ipoints.get((x, y)).getOrElse(" "))                
-    //         println()
-
-
-    // pp()
+    // This is the intersection of the boundaries, which we've over-counted
+    val dbl = inclusiveRectangles.combinations(2).filter({ case Seq(a, b) => a.intersects(b) }).map({ case Seq(a, b) => a.intersect(b) })
         
-    // Area contained by the verticals
-    val insideArea = insides.map(_.area).sum
+    
+    val rectArea = inclusiveRectangles.map(_.area).sum
     val dblArea = dbl.map(_.area).sum
 
     // Intersect between that and the edges
     // val dbl = doubleCountedEdgeRegions.map(_.area).sum
 
-    println(s" Inside area $insideArea  dbl $dblArea  double counted dbl ==> ${insideArea - dblArea}")
+    println(s" Area of distinct rectangles $rectArea  intersection of these is $dblArea ==> result is ${rectArea - dblArea}")
 
 
     // May be useful to have this to spot crashes if using watch
