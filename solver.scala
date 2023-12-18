@@ -42,56 +42,74 @@ def possibilities(s:Step):Seq[Step] = {
 }
 
 
+// Parses a line of puzzle
+def decompose(line:String) = 
+    val s"$dir $dist ($col)" = line
+    val parsedDir = dir match {
+        case "R" => East
+        case "U" => North
+        case "D" => South
+        case "L" => West
+    }
+    (parsedDir, dist.toInt, col)
+
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
 
-    val puz:Seq[Seq[Int]] = lines.map { (l) => 
+    val instructions = lines.map(decompose)
+
+    println(instructions)
+
+    var cursor:Coord = (0, 0)
+    var last:Option[Coord] = None
+    // coordinate, edge-from, edge-to
+    var map = mutable.Map.empty[(Coord), (Coord, Coord, String)]
+    for 
+        (dir, dist, col) <- instructions
+        i <- 1 to dist
+    do
+        cursor = cursor + dir
+        map(cursor) = (dir.inverse, (0, 0), col)
+        for l <- last do 
+            val (from, zero, col) = map(l)
+            map(l) = (from, dir, col)
+        last = Some(cursor)
+
+    val minX = map.keySet.map(_._1).min
+    val minY = map.keySet.map(_._2).min
+
+    val maxX = map.keySet.map(_._1).max
+    val maxY = map.keySet.map(_._2).max
+
+
+    // count what's inside the loop
+    val insideInclusive = for 
+        y <- minY to maxY
+        x <- minX to maxX
+        northCrossingsGoingEast = (for xx <- x to maxX if map.get((xx, y)).exists({ 
+            case (from, to, _) => from == North || to == North
+        }) yield 1).sum if map.contains((x, y)) || northCrossingsGoingEast % 2 == 1
+    yield (x, y)
+
+    def pp() = 
+        println(s"---($minX $minY) to ($maxX $maxY)")
         for 
-            c <- l.toSeq
-        yield ("" + c).toInt
-    }
-    val maxY = puz.indices.max
-    val maxX = puz(maxY).indices.max
+            y <- minY to maxY
+        do     
+            for x <- minX to maxX do
+                if map.contains((x, y)) then
+                    val (from, to, col) = map((x, y))
+                    print("#")
+                else if insideInclusive.contains((x, y)) then 
+                    print("o")
+                else print(".")
+            println()
 
-    def puzContains(p:Coord):Boolean = 
-        val (x, y) = p
-        // x < 2 && y < 2 &&
-        puz.indices.contains(y) && puz(y).indices.contains(x)
+        
 
-    def distAt(coord:Coord):Int = 
-        val (x, y) = coord
-        puz(y)(x)
+    pp()
 
-    val paths:Seq[DistanceMemo] = Seq(((0, 0), (0,0), 0) -> 0)
-    def traverse() = 
-        var b = paths
-        var memo = Map.empty[Step, Int]
-        while !b.isEmpty do 
-            // println(b)
-            //b.foreach { (step, dist) => memo = memo.updated(step, dist) }
-            b = (b.flatMap { (step, dist) => 
-
-                for 
-                    next <- possibilities(step) if puzContains(next._1)                     
-                    nextD = dist + distAt(next._1) if !memo.contains(next) || memo(next) > nextD
-                yield 
-                    memo = memo.updated(next, nextD)
-                    (next, nextD)
-
-            })
-            println(s"Handling ${b.length} distinct paths")
-
-        memo
-
-    println(s"bottom right: $maxX $maxX")
-
-    println("before")
-    val memo = traverse()
-    println(memo.size)
-    val result = memo.filter({ (step, d) => step._1 == (maxX, maxY) && step._3 >= 4 && step._3 <= 10 }).minBy(_._2)
-    println(s"Result $result")
-
-
+    println("Result " + insideInclusive.length)
 
 
 
