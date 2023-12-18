@@ -51,6 +51,36 @@ def decompose2(line:String) =
 
 type Edge = (Coord, Coord, Coord, Coord) // (from, to, dir1, dir2). the last two aren't strictly necessary, but we might as well
 
+type Region = (Coord, Coord)
+
+extension (r:Region) {
+    def x1 = Math.min(r._1._1, r._2._1)
+    def x2 = Math.max(r._1._1, r._2._1)
+    def y1 = Math.min(r._1._2, r._2._2)
+    def y2 = Math.max(r._1._2, r._2._2)
+
+    def contains(p:Coord):Boolean = 
+        val (x, y) = p
+        r.x1 <= x && r.x2 > x && r.y1 <= y && r.y2 > y
+
+    def corners = 
+        (for x <- Seq(r.x1, r.x2); y <- Seq(r.y1, r.y2) yield (x, y))
+
+    def intersects(r2:Region):Boolean = 
+        val ((x1, y1), (x2, y2)) = r2
+        r2.corners.exists((p) => r.contains(p)) || r.corners.exists((p) => r2.contains(p))
+
+    def intersect(r2:Region):Region = 
+        val x1 = Math.max(r.x1, r2.x1)
+        val x2 = Math.min(r.x2, r2.x2)
+        val y1 = Math.max(r.y1, r2.y1)
+        val y2 = Math.min(r.y2, r2.y2)
+
+        (x1, y1) -> (x2, y2)
+
+    def area:Long = (r.x2.toLong - r.x1) * (r.y2.toLong - r.y1)
+}
+
 extension (e:Edge) {
     def minX = Math.min(e._1._1, e._2._1)
     def minY = Math.min(e._1._2, e._2._2)
@@ -70,7 +100,7 @@ extension (e:Edge) {
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
 
-    val instructions = lines.map(decompose1)
+    val instructions = lines.map(decompose2)
 
 
     // We need to keep a set of edges.
@@ -81,12 +111,12 @@ extension (e:Edge) {
         (dir, dist, col) <- instructions
     do
         val next = cursor + (dir * dist)
-        println(s"From $cursor to $next in $dir")
+        // println(s"From $cursor to $next in $dir")
         edges.add((cursor, next, dir, dir.inverse))
         cursor = next
 
 
-    println(edges)
+    // println(edges)
 
     val points = edges.map(_._1)
 
@@ -122,11 +152,13 @@ extension (e:Edge) {
     
     val zippedYs = yAddresses.zip(yAddresses.tail) :+ (maxY, maxY + 1)
 
-    val containedRegionsByY:Seq[Seq[(Coord, Coord)]] = for (y1, y2) <- zippedYs yield
+    // The regions contained within the lines,
+    // plus the "double counted" edge regions
+    val containedRegionsByY:Seq[(Seq[(Coord, Coord)], Seq[(Coord, Coord)])] = for (y1, y2) <- zippedYs yield
         // sort the edges by their lowest x index
         val edges = sedgesAt(y1).toSeq.sortBy((e) => Math.min(e._1._1, e._2._1))
 
-        val horizontals = hedgesAt(y1)
+        val horizontals = hedgesAt(y1).toSeq.sortBy((e) => Math.min(e._1._1, e._2._1))
         val verticals =  edges //edges.filter { case (from, to, dir, idir) => dir == North || idir == North }
 
         val verticallyContainedRanges = 
@@ -136,14 +168,17 @@ extension (e:Edge) {
                 (e1.minX, e2.maxX)
 
         // rectangular regions
-        for (x1, x2) <- verticallyContainedRanges yield (x1 + 1, y1) -> (x2, y2)
+        val regions = for (x1, x2) <- verticallyContainedRanges yield (x1 + 1, y1) -> (x2, y2)
 
-        // val enclosedHorizontals = 
-        //     for 
-        //         e <- horizontals 
-        //         (r1, r2) <- verticallyContainedRanges if r1 <= e.minX && r2 >= e.maxX
-        //     yield 
-        //         Math.max(e.minX, r1 + 1) -> Math.min(e.maxX + 1, r2) 
+        val lineRegions = for e <- horizontals yield (e.minX, y1) -> (e.maxX + 1, y1 + 1)
+
+        val enclosedHorizontals = for 
+            lr <- lineRegions 
+            intersecting <- regions.find((r) => r.intersects(lr))
+        yield 
+             intersecting.intersect(lr)
+
+        (regions, enclosedHorizontals)
 
         // val doubleCounted = enclosedHorizontals.map((a, b) => b - a).sum
 
@@ -155,11 +190,8 @@ extension (e:Edge) {
 
         // enclosedPerLine * (y2 - y1) - doubleCounted // + (unenclosedHorizontals.map(_.inclusiveLength).sum)
 
-    val insides = containedRegionsByY.flatten
-
-    //println(s"Strictly inside is ${insides.sum} edge is $edgeLength  total is ${insides.sum + edgeLength}")
-
-    pp()
+    val insides = containedRegionsByY.map(_._1).flatten
+    val doubleCountedEdgeRegions = containedRegionsByY.map(_._2).flatten
 
     // // To find the north crossings efficiently, we need to find the edges
     // val insideInclusive = for 
@@ -187,21 +219,40 @@ extension (e:Edge) {
         do 
             innards.add((x, y))
 
+        val dbl = mutable.Set.empty[Coord]
+        for 
+            ((x1, y1), (x2, y2)) <- doubleCountedEdgeRegions.toSeq
+            x <- x1 until x2
+            y <- y1 until y2
+        do 
+            dbl.add((x, y))
+
+
         println(s"---($minX $minY) to ($maxX $maxY)")
         for 
             y <- minY to maxY
         do     
             for x <- minX to maxX do
-                if edgePoints.contains((x, y)) && innards.contains((x, y)) then
+                if dbl.contains((x, y)) && edgePoints.contains((x, y)) && innards.contains((x, y)) then
+                    print("2")
+                else if edgePoints.contains((x, y)) && innards.contains((x, y)) then
                     print("!")
                 else if edgePoints.contains((x, y)) then
                     print("#")
                 else if innards.contains((x, y)) then
                     print("x")
-                else print(".")
+                else print(" ")
             println()
 
+
+    // pp()
         
+    val insideArea = insides.map(_.area).sum
+    val dbl = doubleCountedEdgeRegions.map(_.area).sum
+
+    // println(doubleCountedEdgeRegions.mkString("\n"))
+
+    println(s" Inside area $insideArea  edge length $edgeLength  double counted $dbl ==> ${insideArea + edgeLength - dbl}")
 
     //pp()
 
