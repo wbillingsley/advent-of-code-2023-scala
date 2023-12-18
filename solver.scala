@@ -9,39 +9,6 @@ import scala.collection.mutable
 import util.*
 import scala.collection.immutable.Queue
 
-type Line = Seq[Int]
-
-val integers = "(-?\\d+)".r
-val decimals = "(-?\\d+)([.]\\d+)?".r
-
-def allIntegersIn(s:String) = integers.findAllIn(s).map(_.toLong).toSeq
-def allDecimalsIn(s:String) = decimals.findAllIn(s).map(_.toDouble).toSeq
-
-// location, heading (where from), step count
-type Step = (Coord, Coord, Int)
-type Path = Seq[Step]
-
-type DistanceMemo = (Step, Int)
-
-// perpendicular to current heading
-def ninetyDegrees(heading:Coord):Seq[Coord] = heading match {
-    case North | South => Seq(East, West)
-    case East | West => Seq(North, South)
-    case _ => Seq(North, East, South, West) // starting case
-}
-
-// allowable moves
-def possibilities(s:Step):Seq[Step] = {
-    val (p, head, c) = s
-    if s._2 == (0,0) then Seq((p + North, North, 1), (p + East, East, 1), (p + South, South, 1), (p + West, West, 1)) // starting case
-    else if c < 4 then 
-        Seq((p + head, head, c + 1))
-    else if c >= 10 then 
-        for d <- ninetyDegrees(head) yield (p + d, d, 1)
-    else (p + head, head, c + 1) +: (for d <- ninetyDegrees(head) yield (p + d, d, 1)) 
-}
-
-
 // Parses a line of puzzle
 def decompose1(line:String) = 
     val s"$dir $dist (#$col)" = line
@@ -81,21 +48,29 @@ def decompose2(line:String) =
     }
     (hexDir, hexDistParsed.toInt, "#")
 
+
+type Edge = (Coord, Coord, Coord, Coord) // (from, to, dir1, dir2). the last two aren't strictly necessary, but we might as well
+
+extension (e:Edge) {
+    def minX = Math.min(e._1._1, e._2._1)
+    def minY = Math.min(e._1._2, e._2._2)
+    def maxX = Math.max(e._1._1, e._2._1)
+    def maxY = Math.max(e._1._2, e._2._2)
+
+    def inclusiveLength = e.maxY - e.minY + e.maxX - e.minX + 1
+    def exclusiveLength = e.maxY - e.minY + e.maxX - e.minX 
+
+}
+
 @main def main() = 
-    val lines = Source.fromFile("test.txt").getLines().toSeq
+    val lines = Source.fromFile("input.txt").getLines().toSeq
 
     val instructions = lines.map(decompose1)
 
-    println(instructions(0))
-
-    var cursor:Coord = (0, 0)
-    // coordinate, edge-from, edge-to
 
     // We need to keep a set of edges.
+    var cursor:Coord = (0, 0)
 
-    println((6, 0) + ((0, 1) * 5))
-
-    type Edge = (Coord, Coord, Coord, Coord) // (from, to, dir1, dir2). the last two aren't strictly necessary, but we might as well
     var edges = mutable.Set.empty[Edge]
     for 
         (dir, dist, col) <- instructions
@@ -113,54 +88,75 @@ def decompose2(line:String) =
     val xAddresses = points.map(_._1).toSeq.sorted
     val yAddresses = points.map(_._2).toSeq.sorted
 
+    val minX = xAddresses.min
     val maxX = xAddresses.max
-    val maxY = xAddresses.max
-    val minX = yAddresses.min
     val minY = yAddresses.min
+    val maxY = yAddresses.max
 
     println(s"---($minX $minY) to ($maxX $maxY), with ${edges.size} edges")
 
-    // Only get edges we're strictly within. We'll add the edges separately
-    def northEdges(y:Int) = 
-        edges.filter({ case (from, to, dir, idir) => 
+    // edges going south
+    def sedgesAt(y:Int) = 
+        edges.filter({ (e) => 
+            e.maxY > y && e.minY <= y  
+        }).toSeq.sortBy(_.minX)
 
-            (dir == North) &&             // going north
+    def hedgesAt(y:Int) = 
+        edges.filter({ case (from, to, dir, idir) => 
             (
-                (from._2 <= y && to._2 >= y) ||      // contains y
-                (to._2 <= y && from._2 >= y)
-            )
-            
+                (from._2 == y && to._2 == y)
+            )            
         })
 
-    def edgeLength = instructions.map(_._2).sum
 
-    println(edgeLength)
+    def edgeLength = instructions.map(_._2).sum
 
 
     // There's about a million edges, but it's quick per edge
     var count = 0L
     
-    val zippedYs = yAddresses.zip(yAddresses.tail)
+    val zippedYs = yAddresses.zip(yAddresses.tail) :+ (maxY, maxY + 1)
 
     val insides = for (y1, y2) <- zippedYs yield
-        val edges = northEdges(y2) 
+        // sort the edges by their lowest x index
+        val edges = sedgesAt(y1).toSeq.sortBy((e) => Math.min(e._1._1, e._2._1))
 
-        println(s"Edges from $y1 to $y2 are $edges")
+        def isHorizontal(e:Edge):Boolean = 
+            val (from, to, dir, idir) = e
+            idir == East || dir == East
+
+        val horizontals = hedgesAt(y1)
+        val verticals =  edges //edges.filter { case (from, to, dir, idir) => dir == North || idir == North }
+
+        var parity = true
+        val verticallyContainedRanges = 
+            for 
+                (e1, e2) <- (if verticals.nonEmpty then verticals.zip(verticals.tail) else Nil) if parity
+            yield
+                parity = !parity
+                (e1.minX, e2.maxX)
+
+        val enclosedHorizontals = 
+            for 
+                e <- horizontals 
+                (r1, r2) <- verticallyContainedRanges if r1 <= e.minX && r2 >= e.maxX
+            yield 
+                Math.max(e.minX, r1 + 1) -> Math.min(e.maxX + 1, r2) 
+
+        val doubleCounted = enclosedHorizontals.map((a, b) => b - a).sum
 
 
-        val edgeXs = edges.toSeq.map(_._1._1).sorted // sort edges based on x position; we no longer need y
-        val zipped = if edgeXs.nonEmpty then edgeXs.zip(edgeXs.tail) else Nil
-        var parity = false
-        val covered = zipped.foldLeft(0) { case (tot, (a, b)) => 
-            parity = !parity
-            if parity then tot + b - a else tot
-        }
+        val enclosedPerLine = verticallyContainedRanges.map((x1, x2) => x2 - x1 - 1).sum
 
-        covered.toLong * (y2 - y1 + 1)
+        println(s"Verticles at $y1 to $y2 are $verticals enclosing $enclosedPerLine capturing $enclosedHorizontals")
 
 
-    println(insides.sum + edgeLength)
+        enclosedPerLine * (y2 - y1) - doubleCounted // + (unenclosedHorizontals.map(_.inclusiveLength).sum)
 
+
+    println(s"Strictly inside is ${insides.sum} edge is $edgeLength  total is ${insides.sum + edgeLength}")
+
+    pp()
 
     // // To find the north crossings efficiently, we need to find the edges
     // val insideInclusive = for 
@@ -171,19 +167,24 @@ def decompose2(line:String) =
     //     }) yield 1).sum if map.contains((x, y)) || northCrossingsGoingEast % 2 == 1
     // yield (x, y)
 
-    // def pp() = 
-    //     println(s"---($minX $minY) to ($maxX $maxY)")
-    //     for 
-    //         y <- minY to maxY
-    //     do     
-    //         for x <- minX to maxX do
-    //             if map.contains((x, y)) then
-    //                 val (from, to, col) = map((x, y))
-    //                 print("#")
-    //             else if insideInclusive.contains((x, y)) then 
-    //                 print("o")
-    //             else print(".")
-    //         println()
+    def pp() = 
+        val edgePoints = mutable.Set.empty[Coord]
+        for 
+            e <- edges.toSeq
+            x <- e.minX to e.maxX
+            y <- e.minY to e.maxY
+        do 
+            edgePoints.add((x, y))
+
+        println(s"---($minX $minY) to ($maxX $maxY)")
+        for 
+            y <- minY to maxY
+        do     
+            for x <- minX to maxX do
+                if edgePoints.contains((x, y)) then
+                    print("#")
+                else print(".")
+            println()
 
         
 
