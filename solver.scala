@@ -44,21 +44,35 @@ def possibilities(s:Step):Seq[Step] = {
 
 // Parses a line of puzzle
 def decompose(line:String) = 
-    val s"$dir $dist ($col)" = line
+    val s"$dir $dist (#$col)" = line
+
+    val hexDist = col.take(5)
+    val hexDistParsed = Integer.parseInt(hexDist, 16)
+
+    val hexDir = col.last match {
+        case '0' => East
+        case '1' => South
+        case '2' => West
+        case '3' => North
+        case _ => 
+            println(hexDist)
+            throw new IllegalArgumentException("pop")
+    }
+
     val parsedDir = dir match {
         case "R" => East
         case "U" => North
         case "D" => South
         case "L" => West
     }
-    (parsedDir, dist.toInt, col)
+    (hexDir, hexDistParsed.toInt, col)
 
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
 
     val instructions = lines.map(decompose)
 
-    println(instructions)
+    println(instructions(0))
 
     var cursor:Coord = (0, 0)
     var last:Option[Coord] = None
@@ -107,7 +121,7 @@ def decompose(line:String) =
 
         
 
-    pp()
+    //pp()
 
     println("Result " + insideInclusive.length)
 
