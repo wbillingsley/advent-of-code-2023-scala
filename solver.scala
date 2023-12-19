@@ -9,19 +9,10 @@ import scala.collection.mutable
 import util.*
 import scala.collection.immutable.Queue
 
-// Parses a line of puzzle
-def decompose1(line:String) = 
-    val s"$dir $dist (#$col)" = line
+type RatingRange = (Int, Int)
 
-    val parsedDir = dir match {
-        case "R" => East
-        case "U" => North
-        case "D" => South
-        case "L" => West
-    }
-    (parsedDir, dist.toInt, col)
 
-type Ratings = Map[String, Int]
+type Ratings = Map[String, Range]
 
 
 enum WorkflowResult:
@@ -29,7 +20,9 @@ enum WorkflowResult:
     case Reject
     case Accept
 
-type Rule = Ratings => Option[WorkflowResult]
+type Rule = Ratings => (Option[Ratings], WorkflowResult, Option[Ratings])
+
+def exhausted(r:Ratings) = r.values.forall(_.isEmpty)
 
 type Workflow = Seq[Rule]
 
@@ -41,29 +34,46 @@ def outcome(s:String) = s match {
     case n => Do(n)
 }
 
+// Divide a range at a particular value, putting the value into the right hand side
+def bisect(r:Range, n:Int):(Range, Range) = 
+    (r.start until n) -> (n until r.end)
+
 def parseWorkflow(s:String):(String, Seq[Rule]) = {
     val s"$name{$ruleText}" = s
     val rules = ruleText.split(',').toSeq.map {
         case s"$c>$num:$dest" => 
             (r:Ratings) => 
-                if r("" + c) > num.toInt then Some(outcome(dest)) else None
+                val key = "" + c
+                val old = r(key)
+                val (missed, caught) = bisect(old, num.toInt + 1)
+
+                val missedR = if missed.isEmpty then None else Some(r.updated(key, missed))
+                val caughtR = if caught.isEmpty then None else Some(r.updated(key, caught))
+                (caughtR, outcome(dest), missedR)
         case s"$c<$num:$dest" => 
             (r:Ratings) => 
-                if r("" + c) < num.toInt then Some(outcome(dest)) else None
-        case s => (_) => Some(outcome(s))
+                val key = "" + c
+                val old = r(key)
+                val (caught, missed) = bisect(old, num.toInt)
+
+                val missedR = if missed.isEmpty then None else Some(r.updated(key, missed))
+                val caughtR = if caught.isEmpty then None else Some(r.updated(key, caught))
+                (caughtR, outcome(dest), missedR)
+        case s => 
+            (r) => (Some(r), outcome(s), None)
     }
 
     name -> rules
 }
 
-def parseRatings(s:String):Map[String, Int] = {
-    val s"{$inner}" = s
-    val entries = inner.split(',').toSeq map { (el) =>
-        val s"$k=$v" = el
-        k -> v.toInt 
-    }
-    entries.toMap
-}
+// def parseRatings(s:String):Map[String, Int] = {
+//     val s"{$inner}" = s
+//     val entries = inner.split(',').toSeq map { (el) =>
+//         val s"$k=$v" = el
+//         k -> v.toInt 
+//     }
+//     entries.toMap
+// }
 
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
@@ -72,25 +82,50 @@ def parseRatings(s:String):Map[String, Int] = {
 
     val workflows = workflowText.map(parseWorkflow).toMap
 
-    val ratings = ratingsText.map(parseRatings)
+    type RangeState = (Range, WorkflowResult)
 
-    @tailrec
-    def process(part:Ratings, wf:Workflow = workflows("in")): WorkflowResult = {
-        val applicable = wf.find(_.apply(part).nonEmpty)
-        applicable match {
-            case Some(r) => r(part) match {
-                case Some(Do(name)) => process(part, workflows(name))
-                case Some(done) => done
-            } 
+    // always use exclusive ranges
+    val initialRatings = Map(
+        "x" -> (1 until 4001),
+        "m" -> (1 until 4001),
+        "a" -> (1 until 4001),
+        "s" -> (1 until 4001),
+    )
+
+    val acceptBuffer = mutable.Buffer.empty[Ratings]
+    val states = mutable.Queue((initialRatings -> Do("in")))
+
+    while states.nonEmpty do 
+        val (ratings, action) = states.dequeue()
+        action match {
+            case Accept => acceptBuffer.append(ratings)
+            case Do(wfName) => 
+                val wf = workflows(wfName)
+                var remaining = Option(ratings)
+                for rule <- wf do 
+                    remaining match { 
+                        case Some(r) => 
+                            val (caught, nextAction, missed) = rule(r)
+                            for nextR <- caught do states.enqueue(nextR -> nextAction) 
+                            remaining = missed
+                        case None =>
+                            () // nothing left to process 
+                    }
+            case Reject => 
+                () // nothing to do
         }
 
-    }
 
-    println(workflows.size)
+    println(s"Found ${acceptBuffer.size} acceptable situations")
 
-    val accepted = ratings.filter { (p) => process(p) == Accept }
-    val result = accepted.map((p) => p("x") + p("m") + p("a") + p("s")).sum
-    println(s"Result is $result")
+    def possiblities(r:Ratings):Long = 
+        r("x").size.toLong * r("m").size * r("a").size * r("s").size
+
+    val result = acceptBuffer.toSeq.map(possiblities(_)).sum
+
+    println(s"Resulting combinations is $result")
+
+    
 
 
 
