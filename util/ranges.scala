@@ -5,6 +5,11 @@ package util
 
 type LongRange = scala.collection.immutable.NumericRange[Long]
 
+// Divide a range at a particular value, putting the value into the right hand side
+def bisect(r:Range, n:Int):(Range, Range) = 
+    (r.start until n) -> (n until r.end)
+
+
 extension [T] (r1:LongRange) {
     
     /** Finds the overlapping and non-overlapping part of this range with another */
