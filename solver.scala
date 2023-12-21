@@ -12,53 +12,52 @@ import scala.collection.immutable.Queue
 import scala.collection.mutable
 
 
-// class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char]) {
-//     val distance = mutable.Map.empty[(Int, Int), Seq[Int]]
+class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char]) {
+    val distance = mutable.Map.empty[(Int, Int), Int]
 
-//     def maxX = distance.keys.map(_._1).max
-//     def maxY = distance.keys.map(_._1).max
+    def maxX = distance.keys.map(_._1).max
+    def maxY = distance.keys.map(_._1).max
 
-//     def flood(p:(Int, Int), dist:Int, limit:Int):Unit = {
-//         val q = mutable.Queue(p -> dist)
+    def flood(p:(Int, Int), dist:Int)(limit:Int):Unit = {
+        val q = mutable.Queue(p -> dist)
 
-//         while !q.isEmpty && dist < limit do
-//             println(limit)
-//             val (loc, d) = q.dequeue()
-//             val add = check(loc, d)
-//             // println(add)
-//             val filtered = for (p, v) <- add if q.find({ case (pp, vv) => pp == p && vv <= v}).isEmpty yield p -> v
-//             q.enqueueAll(filtered)
-//     }
+        while !q.isEmpty do
+            val (loc, d) = q.dequeue()
+            val add = check(loc, d)
+            // println(add)
+            val filtered = for (p, v) <- add if q.find({ case (pp, vv) => pp == p && vv <= v}).isEmpty && v <= limit yield p -> v
+            q.enqueueAll(filtered)
+    }
 
-//     final def check(p:(Int, Int), dist:Int):Seq[(Coord, Int)] = {
-//         // println(s"Checking $p $dist")
-//         distance(p) = distance.getOrElse(p, Seq.empty) :+ dist
-//         val (x, y) = p
+    final def check(p:(Int, Int), dist:Int):Seq[(Coord, Int)] = {
+        // println(s"Checking $p $dist")
+        distance(p) = dist //distance.getOrElse(p, Seq.empty) :+ dist
+        val (x, y) = p
 
-//         for {
-//             d <- allowedDirections(p)
-//         } yield (p + d, dist + 1)
-//     }
+        for {
+            d <- allowedDirections(p)
+        } yield (p + d, dist + 1)
+    }
 
-//     def maxDistance() = 
-//         distance.maxBy({ case ((x, y), d) => d.max })
+    def maxDistance() = 
+        distance.maxBy({ case ((x, y), d) => d })
 
-//     def pp() = {
-//         val mx = maxY
-//         val my = maxY
-//         for y <- 0 to my do
-//             for x <- 0 to mx do
-//                 if map.get((x, y)).contains('#') then 
-//                     print('#') 
-//                 else
-//                     if distance.contains((x, y)) then print(distance((x, y))) else print(" ")
-//             println()
-//     }
+    def pp() = {
+        val mx = maxY
+        val my = maxY
+        for y <- 0 to my do
+            for x <- 0 to mx do
+                if map.get((x, y)).contains('#') then 
+                    print('#') 
+                else
+                    if distance.contains((x, y)) then print(distance((x, y))) else print(" ")
+            println()
+    }
 
-// }
+}
 
 @main def main() = 
-    val lines = Source.fromFile("input.txt").getLines().toSeq
+    val lines = Source.fromFile("test.txt").getLines().toSeq
 
     
     val map:Map[Coord, Char] = (for 
@@ -71,22 +70,23 @@ import scala.collection.mutable
         dd = all.filter((d) => map.contains(coord + d) && !(map(coord + d) == '#'))
     yield coord -> dd).toMap
 
-    val start = map.find((_, c) => c == 'S').map(_._1).toSet
+    val start = map.find((_, c) => c == 'S').map(_._1).get
     println(s"Start is $start")
     var cursor = start
 
-    for i <- 0 until 64 do
-        cursor = cursor.flatMap { (p) => (for d <- allowedDirections(p) yield p + d).toSet }
-        println(cursor.size)
+    // for i <- 0 until 64 do
+    //     cursor = cursor.flatMap { (p) => (for d <- allowedDirections(p) yield p + d).toSet }
+    //     println(cursor.size)
 
 
-        // 
-        // j.flood(start, 0, 6)
 
-        // j.pp()
+    val j = JellyFlood(allowedDirections)(map)
+    j.flood(start, 0)(6)
 
-        // val canReach = j.distance.count((_, x) => x.contains(6))
-        // println(s"Can reach $canReach")
+    j.pp()
+
+    val canReach = j.distance.count((_, x) => x == 6)
+    println(s"Can reach $canReach")
 
 
 
