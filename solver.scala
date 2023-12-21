@@ -115,7 +115,7 @@ class JellyFlood(map: Map[Coord, Char]) {
 }
 
 @main def main() = 
-    val lines = Source.fromFile("test.txt").getLines().toSeq
+    val lines = Source.fromFile("input.txt").getLines().toSeq
 
     val map:Map[Coord, Char] = (for 
         y <- lines.indices
@@ -129,52 +129,102 @@ class JellyFlood(map: Map[Coord, Char]) {
     
     val start = map.find((_, c) => c == 'S').map(_._1).get
     println(s"Start is $start")
-    var cursor = start
 
-    // for i <- 0 until 64 do
-    //     cursor = cursor.flatMap { (p) => (for d <- allowedDirections(p) yield p + d).toSet }
-    //     println(cursor.size)
+    var cursor = map
+    for i <- 0 until 1 do cursor = nonicate(cursor)
 
 
-
-    val j = JellyFlood(map)
-    j.flood(start, 0)(2000)//(Int.MaxValue)
 
 
     // def canReach(v:Int) = j.distance.count((_, x) => x <= v && (v - x) % 2 == 0)
 
-    def diamond(n:Long) = 2 * n * (n + 1)
+    def filledDiamond(n:Long) = 1 + 2 * (n-1) * n
 
     def canReach(v:Long) = 
-        val periodX = map.rangeX
-        val periodY = map.rangeY
+        val period = map.rangeX // it's square
+        // val periodY = map.rangeY
 
-        // We seem to be lucky that the thing just does flow (at least in the test)
-        // and the input is square
+        val innerBlocks = filledDiamond(v / period) // That covers this many whole blocks
 
-        val blocks = v / periodX
+        val c = JellyFlood(map)
+        c.flood(start, 0)(10000)//(Int.MaxValue)
+        val parityPerBlock = c.distance.count((_, d) => (v - d) % 2 == 0)
+
+        // this many squares in the interior blocks are accessible
+        val innerSq = innerBlocks * parityPerBlock
+
+        // top point of the diamond
+        val t = JellyFlood(map)
+        t.flood((map.rangeX / 2, map.maxY), 1)
+
+        // bottom point of the diamond
+        val b = JellyFlood(map)
+        b.flood((map.rangeX / 2, 0), 1)
+
+        val l = JellyFlood(map)
+        l.flood((map.maxX, map.rangeY / 2), 1)
+
+        val r = JellyFlood(map)
+        l.flood((0, map.rangeY / 2), 1)
+
+        val tl = JellyFlood(map)
+        l.flood((map.maxX, map.maxY), 1)
+
+        val tr = JellyFlood(map)
+        l.flood((0, map.maxY), 1)
+
+        val bl = JellyFlood(map)
+        l.flood((map.maxX, 0), 1)
+
+        val br = JellyFlood(map)
+        l.flood((0, 0), 1)
+
+        val points:Int = if v > period / 2 then 1 else 0
+        val edgeLength = v / period
+
+        innerSq + (points * (for j <- Seq(t, b, l, r) yield j.distance.count((_, x) => x <= v && (v - x) % 2 == 0)).sum) + (edgeLength * (for j <- Seq(tl, tr, bl, br) yield j.distance.count((_, x) => x <= v && (v - x) % 2 == 0)).sum)
+
+        // // We seem to be lucky that the thing just does flow (at least in the test)
+        // // and the input is square
 
 
-        j.pp()
+        // val numPeriods = v / period // We can walk this many "big blocks" in Manhattan distance and still reach the square 
 
-        println( j.distance.count((_, x) => x <= v && (v - x) % 2 == 0) )
-        val reachable = for 
-            (p, d) <- j.distance if (v - d) % 2 == 0 // parity
-        yield 
-            val numPeriods = (v - d) / periodX // We can walk this many "big blocks" in Manhattan distance and still reach the square 
-            val totalBlocks = diamond(numPeriods)
 
-            if v % periodX >= d then 1 + totalBlocks else totalBlocks
 
-        reachable.sum
+        // // j.pp()
 
+        // //j.distance.count((_, x) => x <= v && (v - x) % 2 == 0)
+        // val reachable = for 
+        //     (p, d) <- j.distance if (v - d) % 2 == 0 // parity
+        // yield 
+        //     val numPeriods = v / period// We can walk this many "big blocks" in Manhattan distance and still reach the square 
+        //     val totalBlocks = diamond(numPeriods) // That covers this many whole blocks
+
+        //     val remainder = v % period
+
+        //     val (x, y) = p
+        //     val edges = Seq(x, j.rangeX - x, y, j.rangeY - y)
+
+        //     edges.count((e) => remainder > e) + totalBlocks
 
 
             
+        //     // if v % periodX >= d then 1 + totalBlocks else totalBlocks
+
+        // reachable.sum
 
 
-    println(s"Can reach ${canReach(10)}")
+    val target = 26501365
 
+    val modded = target % map.rangeX
+
+    println(s"ans ${canReach(64)}")
+
+    // for i <- 0 until 5 do 
+    //     val j = i * map.rangeX + modded 
+    //     println(s"$j --> ${canReach(j)}")
+            
 
 
     
