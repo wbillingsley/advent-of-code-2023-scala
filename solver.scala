@@ -17,8 +17,8 @@ extension [T] (map:Map[Coord, T]) {
     def maxX = map.keys.map(_._1).max
     def maxY = map.keys.map(_._1).max
 
-    def rangeX = map.maxX - map.minX
-    def rangeY = map.maxY - map.minY
+    def rangeX = map.maxX + 1 - map.minX
+    def rangeY = map.maxY + 1 - map.minY
 
     def step(p:Coord, d:Coord) = (p + d) % (map.rangeX, map.rangeY) 
 
@@ -30,8 +30,8 @@ def nonicate[T](map:Map[Coord, T]):Map[Coord, T] = {
     val minY = map.keys.map(_._1).min
     val maxX = map.keys.map(_._1).max
     val maxY = map.keys.map(_._1).max
-    val rangeX = maxX - minX
-    val rangeY = maxY - minY
+    val rangeX = maxX + 1 - minX
+    val rangeY = maxY + 1 - minY
 
     (for 
         dx <- Seq(-rangeX, 0, rangeX)
@@ -42,15 +42,34 @@ def nonicate[T](map:Map[Coord, T]):Map[Coord, T] = {
 
 }
 
+
+
 class JellyFlood(map: Map[Coord, Char]) {
     val distance = mutable.Map.empty[(Int, Int), Int]
 
-    def maxX = distance.keys.map(_._1).max
-    def maxY = distance.keys.map(_._1).max
+    val minX = map.minX
+    val minY = map.minY
+    val maxX = map.maxX
+    val maxY = map.maxY
+    val rangeX = map.rangeX
+    val rangeY = map.rangeY
+
+    val mod = (rangeX, rangeY)
+    def step(p:Coord, d:Coord) = 
+        var (x, y) = p + d
+        while x < minX do x += rangeX
+        while x > maxX do x -= rangeX
+
+        while y < minY do y += rangeY
+        while y > maxY do y -= rangeY
+
+        (x, y)
+
+
 
     def allowedDirs[T](map:Map[Coord, T]) = (for 
         coord <- map.keySet
-        dd = all.filter((d) => map.contains(coord + d) && !(map(coord + d) == '#'))
+        dd = all.filter((d) => map.contains(step(coord, d)) && !(map(step(coord, d)) == '#'))
     yield coord -> dd).toMap
 
     val allowedDirections = allowedDirs(map)
@@ -73,8 +92,9 @@ class JellyFlood(map: Map[Coord, Char]) {
         val (x, y) = p
 
         for {
-            d <- allowedDirections(p) if !distance.get(p + d).exists(_ <= dist + 1)
-        } yield (p + d, dist + 1)
+            d <- allowedDirections(p) 
+            pp = step(p, d) if !distance.get(pp).exists(_ <= dist + 1)
+        } yield (step(p, d), dist + 1)
     }
 
     def maxDistance() = 
@@ -83,12 +103,12 @@ class JellyFlood(map: Map[Coord, Char]) {
     def pp() = {
         val mx = maxY
         val my = maxY
-        for y <- 0 to my do
-            for x <- 0 to mx do
+        for y <- minY to my do
+            for x <- minX to mx do
                 if map.get((x, y)).contains('#') then 
-                    print('#') 
+                    print(" ## ") 
                 else
-                    if distance.contains((x, y)) then print(distance((x, y))) else print(" ")
+                    if distance.contains((x, y)) then print(f" ${distance((x, y))}%02d ") else print("    ")
             println()
     }
 
@@ -117,13 +137,13 @@ class JellyFlood(map: Map[Coord, Char]) {
 
 
 
-    val j = JellyFlood(map)
-    j.flood(start, 0)(9)//(Int.MaxValue)
+    val j = JellyFlood(nMap)
+    j.flood(start, 0)(200)//(Int.MaxValue)
 
     j.pp()
 
-    val canReach = j.distance.count((_, x) => (x - 6) >= 0 && (x - 6) % 2 == 0)
-    println(s"Can reach $canReach")
+    def canReach(v:Int) = j.distance.count((_, x) => x <= v && (v - x) % 2 == 0)
+    println(s"Can reach ${canReach(10)}")
 
 
 
