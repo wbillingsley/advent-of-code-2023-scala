@@ -11,6 +11,19 @@ import scala.collection.immutable.Queue
 
 import scala.collection.mutable
 
+extension [T] (map:Map[Coord, T]) {
+    def minX = map.keys.map(_._1).min
+    def minY = map.keys.map(_._1).min
+    def maxX = map.keys.map(_._1).max
+    def maxY = map.keys.map(_._1).max
+
+    def rangeX = map.maxX - map.minX
+    def rangeY = map.maxY - map.minY
+
+    def step(p:Coord, d:Coord) = (p + d) % (map.rangeX, map.rangeY) 
+
+}
+
 // replicate a grid nine times
 def nonicate[T](map:Map[Coord, T]):Map[Coord, T] = {
     val minX = map.keys.map(_._1).min
@@ -29,11 +42,19 @@ def nonicate[T](map:Map[Coord, T]):Map[Coord, T] = {
 
 }
 
-class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char]) {
+class JellyFlood(map: Map[Coord, Char]) {
     val distance = mutable.Map.empty[(Int, Int), Int]
 
     def maxX = distance.keys.map(_._1).max
     def maxY = distance.keys.map(_._1).max
+
+    def allowedDirs[T](map:Map[Coord, T]) = (for 
+        coord <- map.keySet
+        dd = all.filter((d) => map.contains(coord + d) && !(map(coord + d) == '#'))
+    yield coord -> dd).toMap
+
+    val allowedDirections = allowedDirs(map)
+
 
     def flood(p:(Int, Int), dist:Int)(limit:Int):Unit = {
         val q = mutable.Queue(p -> dist)
@@ -81,11 +102,11 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char
         x <- lines(y).indices
     yield (x, y) -> lines(y)(x)).toMap
 
-    val allowedDirections = (for 
-        coord <- map.keySet
-        dd = all.filter((d) => map.contains(coord + d) && !(map(coord + d) == '#'))
-    yield coord -> dd).toMap
+    val nMap = nonicate(map)
 
+
+
+    
     val start = map.find((_, c) => c == 'S').map(_._1).get
     println(s"Start is $start")
     var cursor = start
@@ -96,7 +117,7 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char
 
 
 
-    val j = JellyFlood(allowedDirections)(map)
+    val j = JellyFlood(map)
     j.flood(start, 0)(9)//(Int.MaxValue)
 
     j.pp()
