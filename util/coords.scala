@@ -12,6 +12,14 @@ extension (c:Coord) {
 
     def * (s:Int) = 
         (c._1 * s, c._2 * s)
+
+    def % (m:Coord) = 
+        val (x, y) = c
+        val (mx, my) = m
+
+        val rx = if x % mx < 0 then (x % mx) + mx else x % mx
+        val ry = if y % my < 0 then (y % my) + my else y % my
+        (rx, ry)
 }
 
 val North = (0, -1)

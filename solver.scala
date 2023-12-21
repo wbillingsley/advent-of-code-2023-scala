@@ -11,6 +11,23 @@ import scala.collection.immutable.Queue
 
 import scala.collection.mutable
 
+// replicate a grid nine times
+def nonicate[T](map:Map[Coord, T]):Map[Coord, T] = {
+    val minX = map.keys.map(_._1).min
+    val minY = map.keys.map(_._1).min
+    val maxX = map.keys.map(_._1).max
+    val maxY = map.keys.map(_._1).max
+    val rangeX = maxX - minX
+    val rangeY = maxY - minY
+
+    (for 
+        dx <- Seq(-rangeX, 0, rangeX)
+        dy <- Seq(-rangeY, 0, rangeY)
+        (x, y) <- map.keySet.toSeq
+    yield
+        (x + dx, y + dy) -> map((x, y))).toMap
+
+}
 
 class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char]) {
     val distance = mutable.Map.empty[(Int, Int), Int]
@@ -35,7 +52,7 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char
         val (x, y) = p
 
         for {
-            d <- allowedDirections(p)
+            d <- allowedDirections(p) if !distance.get(p + d).exists(_ <= dist + 1)
         } yield (p + d, dist + 1)
     }
 
@@ -59,7 +76,6 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char
 @main def main() = 
     val lines = Source.fromFile("test.txt").getLines().toSeq
 
-    
     val map:Map[Coord, Char] = (for 
         y <- lines.indices
         x <- lines(y).indices
@@ -81,11 +97,11 @@ class JellyFlood(allowedDirections: Map[Coord, Seq[Coord]])(map: Map[Coord, Char
 
 
     val j = JellyFlood(allowedDirections)(map)
-    j.flood(start, 0)(6)
+    j.flood(start, 0)(9)//(Int.MaxValue)
 
     j.pp()
 
-    val canReach = j.distance.count((_, x) => x == 6)
+    val canReach = j.distance.count((_, x) => (x - 6) >= 0 && (x - 6) % 2 == 0)
     println(s"Can reach $canReach")
 
 
