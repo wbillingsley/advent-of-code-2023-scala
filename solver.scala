@@ -137,12 +137,42 @@ class JellyFlood(map: Map[Coord, Char]) {
 
 
 
-    val j = JellyFlood(nMap)
-    j.flood(start, 0)(200)//(Int.MaxValue)
+    val j = JellyFlood(map)
+    j.flood(start, 0)(2000)//(Int.MaxValue)
 
-    j.pp()
 
-    def canReach(v:Int) = j.distance.count((_, x) => x <= v && (v - x) % 2 == 0)
+    // def canReach(v:Int) = j.distance.count((_, x) => x <= v && (v - x) % 2 == 0)
+
+    def diamond(n:Long) = 2 * n * (n + 1)
+
+    def canReach(v:Long) = 
+        val periodX = map.rangeX
+        val periodY = map.rangeY
+
+        // We seem to be lucky that the thing just does flow (at least in the test)
+        // and the input is square
+
+        val blocks = v / periodX
+
+
+        j.pp()
+
+        println( j.distance.count((_, x) => x <= v && (v - x) % 2 == 0) )
+        val reachable = for 
+            (p, d) <- j.distance if (v - d) % 2 == 0 // parity
+        yield 
+            val numPeriods = (v - d) / periodX // We can walk this many "big blocks" in Manhattan distance and still reach the square 
+            val totalBlocks = diamond(numPeriods)
+
+            if v % periodX >= d then 1 + totalBlocks else totalBlocks
+
+        reachable.sum
+
+
+
+            
+
+
     println(s"Can reach ${canReach(10)}")
 
 
