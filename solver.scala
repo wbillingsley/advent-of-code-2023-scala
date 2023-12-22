@@ -16,7 +16,16 @@ type Coord3 = (Int, Int, Int)
 
 type BrickData = (Coord3, Coord3)
 
-case class Brick(x:Range, y:Range, z:Range)
+case class Brick(x:Range, y:Range, z:Range) {
+
+    // Drop a brick onto a compact stack
+    def fallOnto(pile:Seq[Brick]) = 
+        val zValues = pile.filter((support) => x.intersect(support.x).nonEmpty && y.intersect(support.y).nonEmpty).map(_.z.end)
+        val lowestFreeZ = if zValues.isEmpty then 1 else zValues.max + 1
+        Brick(x, y, lowestFreeZ to lowestFreeZ + (z.end - z.start))
+
+    def volume = x.length * y.length * z.length
+}
 
 def decompose(line:String):Brick = 
     val s"$a,$b,$c~$x,$y,$z" = line
@@ -24,7 +33,7 @@ def decompose(line:String):Brick =
     Brick(aa to xx, bb to yy, cc to zz)
 
 @main def main() = 
-    val lines = Source.fromFile("test.txt").getLines().toSeq
+    val lines = Source.fromFile("input.txt").getLines().toSeq
 
     val bricks = lines.map(decompose)
 
@@ -32,12 +41,32 @@ def decompose(line:String):Brick =
     //println(bricks.forall { (b) => (b.z.start <= b.z.end) })
 
     val sortedByBase = bricks.sortBy(_.z.start)
-    
-    def canFall = bricks.count { (b) => 
+
+    def canFall(pile:Seq[Brick]) = pile.count { (b) => 
         b.z.start > 1 && !bricks.exists((support) => b.x.intersect(support.x).nonEmpty && b.y.intersect(support.y).nonEmpty && support.z.contains(b.z.end + 1))
     }
+    // println(s"Can fall: $canFall")
 
-    println(s"Can fall: $canFall")
+    def fall(oldPile:Seq[Brick]):Seq[Brick] = 
+        oldPile.foldLeft[Seq[Brick]](Nil) { (pile, b) => pile :+ b.fallOnto(pile) }
+
+ 
+    val fallen = fall(sortedByBase)
+
+    // sanity check that volume has not changed
+    //println(sortedByBase.map(_.volume).sum == fallen.map(_.volume).sum)
+
+    println(fallen)
+
+    def canDisintigrate = fallen.count { (b) => 
+        val removed = fallen.filter(_ != b)
+        // println(s"${fallen.length} -> ${removed.length}")
+        fall(removed) == removed
+        //canFall(removed) == 0
+    }
+
+    println(s"Can disintigrate ${canDisintigrate}")
+    
 
 
     // May be useful to have this to spot crashes if using watch
