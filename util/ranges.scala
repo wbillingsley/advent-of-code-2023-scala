@@ -10,6 +10,13 @@ def bisect(r:Range, n:Int):(Range, Range) =
     (r.start until n) -> (n until r.end)
 
 
+extension(r1:Range) {
+    /** Whether any of this range intersects with another */
+    def clips(r2:Range) = 
+        Math.max(r1.start, r2.start) <= Math.min(r1.end, r2.end)
+}
+
+
 extension [T] (r1:LongRange) {
     
     /** Finds the overlapping and non-overlapping part of this range with another */
