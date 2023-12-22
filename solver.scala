@@ -56,14 +56,16 @@ class JellyFlood(map: Map[Coord, Char]) {
 
     val mod = (rangeX, rangeY)
     def step(p:Coord, d:Coord) = 
-        var (x, y) = p + d
-        while x < minX do x += rangeX
-        while x > maxX do x -= rangeX
+        // Turn the modulo off again now we're doing diamonds
+        // var (x, y) = p + d
+        // while x < minX do x += rangeX
+        // while x > maxX do x -= rangeX
 
-        while y < minY do y += rangeY
-        while y > maxY do y -= rangeY
+        // while y < minY do y += rangeY
+        // while y > maxY do y -= rangeY
 
-        (x, y)
+        // (x, y)
+        p + d
 
 
 
@@ -75,7 +77,7 @@ class JellyFlood(map: Map[Coord, Char]) {
     val allowedDirections = allowedDirs(map)
 
 
-    def flood(p:(Int, Int), dist:Int)(limit:Int):Unit = {
+    def flood(p:(Int, Int), dist:Int)(limit:Int):JellyFlood = {
         val q = mutable.Queue(p -> dist)
 
         while !q.isEmpty do
@@ -84,6 +86,8 @@ class JellyFlood(map: Map[Coord, Char]) {
             // println(add)
             val filtered = for (p, v) <- add if q.find({ case (pp, vv) => pp == p && vv <= v}).isEmpty && v <= limit yield p -> v
             q.enqueueAll(filtered)
+
+        this
     }
 
     final def check(p:(Int, Int), dist:Int):Seq[(Coord, Int)] = {
@@ -99,6 +103,9 @@ class JellyFlood(map: Map[Coord, Char]) {
 
     def maxDistance() = 
         distance.maxBy({ case ((x, y), d) => d })
+
+    def parityDistance(n:Long) = 
+        distance.values.count((d) => n >= d && (n - d) % 2 == 0)
 
     def pp() = {
         val mx = maxY
@@ -138,51 +145,87 @@ class JellyFlood(map: Map[Coord, Char]) {
 
     // def canReach(v:Int) = j.distance.count((_, x) => x <= v && (v - x) % 2 == 0)
 
-    def filledDiamond(n:Long) = 1 + 2 * (n-1) * n
+    def filledDiamond(n:Int):Long = if n == 0 then 0 else 1 + 2 * (n-1) * n
 
-    def canReach(v:Long) = 
+    def canReach(v:Long):Long = 
         val period = map.rangeX // it's square
         // val periodY = map.rangeY
 
-        val innerBlocks = filledDiamond(v / period) // That covers this many whole blocks
 
-        val c = JellyFlood(map)
-        c.flood(start, 0)(10000)//(Int.MaxValue)
-        val parityPerBlock = c.distance.count((_, d) => (v - d) % 2 == 0)
+        // val innerBlocks = filledDiamond(v / period) // That covers this many whole blocks. Blast, forgot it's an odd number steps between blocks so it flips.
+
+        val zeroInner = JellyFlood(map).flood(start, 0)(period)//(Int.MaxValue)
+
+        val oddsAndEvens = (1 to (v / period).toInt).foldLeft((0L, 0L)) { case ((o, e), i) => 
+            if i == 1 then 
+                (o, e + 1)
+            else if i % 2 == 0 then
+                (o + 4 * (i - 1), e)
+            else 
+                (o, e + 4 * (i - 1))
+        }
+
+        val oddCount = zeroInner.parityDistance(1001)
+        val evenCount = zeroInner.parityDistance(1000)
+
 
         // this many squares in the interior blocks are accessible
-        val innerSq = innerBlocks * parityPerBlock
+        val innerSq:Long = if v < period then zeroInner.parityDistance(v) else 
+            val (o, e) = oddsAndEvens
+            // println(s"O $e * $oddCount = ${e * oddCount} E $o * $evenCount = ${o * evenCount}}")
+            e * oddCount + o * evenCount
+
+
+            
+
 
         // top point of the diamond
-        val t = JellyFlood(map)
-        t.flood((map.rangeX / 2, map.maxY), 1)
+        val t = JellyFlood(map).flood((map.rangeX / 2, map.maxY), 0)(period)
 
         // bottom point of the diamond
-        val b = JellyFlood(map)
-        b.flood((map.rangeX / 2, 0), 1)
+        val b = JellyFlood(map).flood((map.rangeX / 2, 0), 0)(period)
 
-        val l = JellyFlood(map)
-        l.flood((map.maxX, map.rangeY / 2), 1)
+        val l = JellyFlood(map).flood((map.maxX, map.rangeY / 2), 0)(period)
 
-        val r = JellyFlood(map)
-        l.flood((0, map.rangeY / 2), 1)
+        val r = JellyFlood(map).flood((0, map.rangeY / 2), 0)(period)
 
-        val tl = JellyFlood(map)
-        l.flood((map.maxX, map.maxY), 1)
 
-        val tr = JellyFlood(map)
-        l.flood((0, map.maxY), 1)
+        val tl = JellyFlood(map).flood((map.maxX, map.maxY), 0)(period * 2)
 
-        val bl = JellyFlood(map)
-        l.flood((map.maxX, 0), 1)
+        val tr = JellyFlood(map).flood((0, map.maxY), 0)(period * 2)
 
-        val br = JellyFlood(map)
-        l.flood((0, 0), 1)
+        val bl = JellyFlood(map).flood((map.maxX, 0), 0)(period * 2)
+
+        val br = JellyFlood(map).flood((0, 0), 0)(period * 2)
+
+
+
+
+        // After going whole blocks, what have we got left in each direction?
+        val remainder = v % period + 1 // Because it's an odd grid, the steps to the corner is 1 less than the period
+        println(s"Remainder is $remainder")
+
+        // how many blocks to place on the tl, tr, bl, br edges of the diamond for the front of reachable squares
+        val edgeLength = v / period 
+        val edgeRemainder = (v - 1) % period
+        val edgeReachable = edgeLength * (for j <- Seq(tl, tr, bl, br) yield j.parityDistance(edgeRemainder)).sum
+        println(s"First edge has $edgeLength entries. $edgeRemainder Reachable $edgeReachable")
+
+        // forgot the second edge
+        val secondEdge = edgeLength - 1 // fence posts and fences
+        val seRemainder = edgeRemainder + period // because this starts in the bottom corner, we can go more than a "period" to the opposite corner
+        val seReachable = secondEdge * (for j <- Seq(tl, tr, bl, br) yield j.parityDistance(seRemainder)).sum
+        println(s"Second edge has $secondEdge entries. $seRemainder Reachable $seReachable")
 
         val points:Int = if v > period / 2 then 1 else 0
-        val edgeLength = v / period
+        val pointsRemainder = (v - period / 2 - 1) % period // minus one to get onto the start square
+        println(s"points remainder $pointsRemainder")
+        val pointsReachable = points * (for j <- Seq(t, b, l, r) yield j.parityDistance(pointsRemainder)).sum
 
-        innerSq + (points * (for j <- Seq(t, b, l, r) yield j.distance.count((_, x) => x <= v && (v - x) % 2 == 0)).sum) + (edgeLength * (for j <- Seq(tl, tr, bl, br) yield j.distance.count((_, x) => x <= v && (v - x) % 2 == 0)).sum)
+        println(s"inner $innerSq; pointsReachable $pointsReachable; edgeReachable $edgeReachable  littleEdge $secondEdge  leReachable $seReachable")
+
+        innerSq + pointsReachable + edgeReachable + seReachable
+        
 
         // // We seem to be lucky that the thing just does flow (at least in the test)
         // // and the input is square
@@ -219,7 +262,7 @@ class JellyFlood(map: Map[Coord, Char]) {
 
     val modded = target % map.rangeX
 
-    println(s"ans ${canReach(64)}")
+    println(s"ans ${canReach(target)}")
 
     // for i <- 0 until 5 do 
     //     val j = i * map.rangeX + modded 
