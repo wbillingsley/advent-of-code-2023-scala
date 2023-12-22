@@ -1,6 +1,6 @@
-// This is the solution for part 2
-// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star35/solver.scala
-// (or select the "star35" branch from GitHub)
+// This is the solution for part 1
+// For the solution to part 2, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star44/solver.scala
+// (or select the "star44" branch from GitHub)
 
 import scala.io.*
 import scala.annotation.tailrec
@@ -42,33 +42,22 @@ def decompose(line:String):Brick =
 
     val sortedByBase = bricks.sortBy(_.z.start)
 
-    def canFall(pile:Seq[Brick]) = pile.count { (b) => 
-        b.z.start > 1 && !bricks.exists((support) => b.x.intersect(support.x).nonEmpty && b.y.intersect(support.y).nonEmpty && support.z.contains(b.z.end + 1))
-    }
-    // println(s"Can fall: $canFall")
 
     def fall(oldPile:Seq[Brick]):Seq[Brick] = 
         oldPile.foldLeft[Seq[Brick]](Nil) { (pile, b) => pile :+ b.fallOnto(pile) }
-
  
     val fallen = fall(sortedByBase)
 
     // sanity check that volume has not changed
     //println(sortedByBase.map(_.volume).sum == fallen.map(_.volume).sum)
 
-    println(fallen)
-
     def canDisintigrate = fallen.count { (b) => 
         val removed = fallen.filter(_ != b)
-        // println(s"${fallen.length} -> ${removed.length}")
         fall(removed) == removed
-        //canFall(removed) == 0
     }
 
     println(s"Can disintigrate ${canDisintigrate}")
     
-
-
     // May be useful to have this to spot crashes if using watch
     println("Re-ran at: " + java.util.Date().toLocaleString())
 
