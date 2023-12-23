@@ -37,7 +37,7 @@ extension [T] (map:Map[Coord, T]) {
     def rangeX = map.maxX + 1 - map.minX
     def rangeY = map.maxY + 1 - map.minY
 
-    def step(p:Coord, d:Coord) = (p + d) % (map.rangeX, map.rangeY) 
+    def step(p:Coord, d:Coord) = (p + d) 
 
 }
 
