@@ -13,7 +13,8 @@ import scala.collection.mutable
 
 
 class LongJellyFlood(map: Map[Coord, Char]) {
-    val distance = mutable.Map.empty[(Int, Int), Int]
+    // Every step must encompass one new point. The length of a path is just the number of points in it
+    val seen = mutable.Set.empty[(Coord, Set[Coord])]
 
     val minX = map.minX
     val minY = map.minY
@@ -22,20 +23,8 @@ class LongJellyFlood(map: Map[Coord, Char]) {
     val rangeX = map.rangeX
     val rangeY = map.rangeY
 
-    val mod = (rangeX, rangeY)
     def step(p:Coord, d:Coord) = 
-        // Turn the modulo off again now we're doing diamonds
-        // var (x, y) = p + d
-        // while x < minX do x += rangeX
-        // while x > maxX do x -= rangeX
-
-        // while y < minY do y += rangeY
-        // while y > maxY do y -= rangeY
-
-        // (x, y)
         p + d
-
-
 
     def allowedDirs(map:Map[Coord, Char]):Map[Coord, Seq[Coord]] = (for 
         coord <- map.keySet if map(coord) != '#'
@@ -43,9 +32,9 @@ class LongJellyFlood(map: Map[Coord, Char]) {
     yield 
         coord -> (map(coord) match {
             case '.' => dd
-            case '>' => Seq(East)
-            case '<' => Seq(West)
-            case 'v' => Seq(South)
+            case '>' => dd // Seq(East)
+            case '<' => dd //Seq(West)
+            case 'v' => dd // Seq(South)
         })
     ).toMap
 
@@ -53,8 +42,8 @@ class LongJellyFlood(map: Map[Coord, Char]) {
 
 
 
-    def flood(path:List[Coord], dist:Int)(limit:Int):LongJellyFlood = {
-        val q = mutable.Queue(path -> dist)
+    def flood(path:(Coord, Set[Coord])):LongJellyFlood = {
+        val q = mutable.Queue(path)
 
         println("Begin flood for " + path)
 
@@ -64,40 +53,38 @@ class LongJellyFlood(map: Map[Coord, Char]) {
             val add = check(path, d)
             // println(add)
             // val filtered = for (pp, v) <- add if q.find({ case (pp, vv) => pp == p && vv <= v}).isEmpty && v <= limit yield p -> v
+
+            // tried but wrong
+            // val filtered = for ((p :: tail), v) <- add if q.find({ case (pp :: tt, vv) => pp == p && vv >= v}).isEmpty yield ((p :: tail), v)
+            // q.enqueueAll(filtered)
+
+
             q.enqueueAll(add)
 
         this
     }
 
-    final def check(path:List[Coord], dist:Int):Seq[(List[Coord], Int)] = {
+    final def check(path:(Coord, Set[Coord])):Seq[(Coord, Set[Coord])] = {
         // println(s"Checking $p $dist")
-        val p :: tail = path 
-        distance(p) = dist //distance.getOrElse(p, Seq.empty) :+ dist
-        val (x, y) = p
+        val (p, tail) = path 
 
         for {
             d <- allowedDirections(p) 
-            pp = step(p, d) if !tail.contains(pp) && !distance.get(pp).exists(_ > dist + 1)
-        } yield (pp :: path, dist + 1)
+            pp = step(p, d) if !seen.contains(pp, tail + p)
+        } yield pp -> (tail + p)
     }
 
-    def maxDistance() = 
-        distance.maxBy({ case ((x, y), d) => d })
-
-    def parityDistance(n:Long) = 
-        distance.values.count((d) => n >= d && (n - d) % 2 == 0)
-
-    def pp() = {
-        val mx = maxY
-        val my = maxY
-        for y <- minY to my do
-            for x <- minX to mx do
-                if map.get((x, y)).contains('#') then 
-                    print(" ## ") 
-                else
-                    if distance.contains((x, y)) then print(f" ${distance((x, y))}%02d ") else print("    ")
-            println()
-    }
+    // def pp() = {
+    //     val mx = maxY
+    //     val my = maxY
+    //     for y <- minY to my do
+    //         for x <- minX to mx do
+    //             if map.get((x, y)).contains('#') then 
+    //                 print(" ## ") 
+    //             else
+    //                 if distance.contains((x, y)) then print(f" ${distance((x, y))}%02d ") else print("    ")
+    //         println()
+    // }
 
 }
 
@@ -115,11 +102,12 @@ class LongJellyFlood(map: Map[Coord, Char]) {
 
     val j = LongJellyFlood(mazeMap)
     println("About to flood")
-    j.flood(List(start), 0)(10000)
+    j.flood((start, Set.empty))
     println("Finished flood")
 
-    j.pp()
-    //println(j.distance(target))
+    val longest = j.seen.filter(_._1 == target).map((p, t) => t.size + 1).max
+
+    println(s"Longest is $longest")
 
     println(start)
 
