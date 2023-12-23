@@ -41,8 +41,10 @@ def stepWithCondition(path:List[Coord], allowedDirections:Map[Coord, Seq[Coord]]
     val target = (maze(maze.indices.last).indexOf('.'), maze.indices.last)
 
     val j0 = JellyFlood(mazeMap) // only because I happened to leave the map of allowable directions in there
-    val junctions = (for (p, dirs) <- j0.allowedDirections.toSeq if dirs.length > 2 yield p -> dirs).toMap
+    val junctions = (for (p, dirs) <- j0.allowedDirections.toSeq if mazeMap(p) != '#' && dirs.length > 2 yield p -> dirs).toMap
     val junctionPositions = junctions.keySet + start + target
+
+    println("Junctions " + junctionPositions.size)
 
     val junctionMap = (for 
         j <- junctionPositions.toSeq 
