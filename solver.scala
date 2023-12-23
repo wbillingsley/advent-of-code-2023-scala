@@ -1,6 +1,6 @@
-// This is the solution for part 2
-// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star43/solver.scala
-// (or select the "star43" branch from GitHub)
+// This is the solution for part 1
+// For the solution to part 2, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star46/solver.scala
+// (or select the "star46" branch from GitHub)
 
 import scala.io.*
 import scala.annotation.tailrec
@@ -24,15 +24,6 @@ class LongJellyFlood(map: Map[Coord, Char]) {
 
     val mod = (rangeX, rangeY)
     def step(p:Coord, d:Coord) = 
-        // Turn the modulo off again now we're doing diamonds
-        // var (x, y) = p + d
-        // while x < minX do x += rangeX
-        // while x > maxX do x -= rangeX
-
-        // while y < minY do y += rangeY
-        // while y > maxY do y -= rangeY
-
-        // (x, y)
         p + d
 
 
