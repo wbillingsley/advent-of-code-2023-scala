@@ -147,17 +147,23 @@ def stepWithCondition(path:List[Coord], allowedDirections:Map[Coord, Seq[Coord]]
             (next, tail + p, cost + d)
     }
 
-    val allPaths = mutable.Buffer.empty[JunctionPath]
+    // val allPaths = mutable.Buffer.empty[JunctionPath]
+    var longest:Option[Int] = None
     var cursor:Seq[JunctionPath] = Seq((start, Set.empty, 0))
     println("Go!")
     while cursor.nonEmpty do 
-        val collected = allPaths.length
-        println(collected)
-        allPaths.append(cursor*)
+        println(s"Processing ${cursor.length} paths")
+        val atTarget = cursor.filter(_._1 == target)
+        if atTarget.nonEmpty then
+            val long = atTarget.map(_._3).max
+            if longest.isEmpty || longest.get < long then
+                println(s"New longest $long")
+                longest = Some(long)
+        
         cursor = cursor.flatMap(jstep)
 
-    val toTarget = allPaths.filter(_._1 == target).map(_._3)
-    println(toTarget.max)
+    
+    println(s"Done, longest was $longest")
 
 
 
