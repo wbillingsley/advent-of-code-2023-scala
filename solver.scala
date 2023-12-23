@@ -88,6 +88,23 @@ class LongJellyFlood(map: Map[Coord, Char]) {
 
 }
 
+def stepWithCondition(path:List[Coord], allowedDirections:Map[Coord, Seq[Coord]])(cond: List[Coord] => Boolean):Seq[List[Coord]] = {
+    val found = mutable.Buffer.empty[List[Coord]]
+
+    // @tailrec
+    def step(path:List[Coord]):Unit = 
+        val (p :: t) = path
+        for d <- allowedDirections(p) if !path.contains(p + d) do 
+            if (cond((p + d) :: path)) then
+                found.append((p + d) :: path)
+            else 
+                step((p + d) :: path)
+
+    step(path)
+    found.toSeq
+
+}
+
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
 
@@ -100,18 +117,47 @@ class LongJellyFlood(map: Map[Coord, Char]) {
     val start = (maze(0).indexOf('.'), 0)
     val target = (maze(maze.indices.last).indexOf('.'), maze.indices.last)
 
-    val j = LongJellyFlood(mazeMap)
-    println("About to flood")
-    j.flood((start, Set.empty))
-    println("Finished flood")
+    val j0 = JellyFlood(mazeMap)
+    val junctions = (for (p, dirs) <- j0.allowedDirections.toSeq if dirs.length > 2 yield p -> dirs).toMap
+    val junctionPositions = junctions.keySet + start + target
 
-    val longest = j.seen.filter(_._1 == target).map((p, t) => t.size + 1).max
+    val junctionMap = (for 
+        j <- junctionPositions.toSeq 
+        dirs = j0.allowedDirections(j)
+    yield {
+        j -> (for d <- dirs yield
+            val neighbours = stepWithCondition(List(j + d, j), j0.allowedDirections) {
+                case (p :: t) => junctionPositions.contains(p) || p == start || p == target
+            }
+            val path = neighbours(0)
+            path.head -> (path.length - 1)
+        )
 
-    println(s"Longest is $longest")
-
-    println(start)
+    }).toMap
 
 
+    // current junction, visited, length
+    type JunctionPath = (Coord, Set[Coord], Int)
+
+    val begin = List((start, 0))
+
+    def jstep(jp:JunctionPath):Seq[JunctionPath] = {
+        val (p, tail, cost) = jp
+        for (next, d) <- junctionMap(p) if !tail.contains(next) yield
+            (next, tail + p, cost + d)
+    }
+
+    val allPaths = mutable.Buffer.empty[JunctionPath]
+    var cursor:Seq[JunctionPath] = Seq((start, Set.empty, 0))
+    println("Go!")
+    while cursor.nonEmpty do 
+        val collected = allPaths.length
+        println(collected)
+        allPaths.append(cursor*)
+        cursor = cursor.flatMap(jstep)
+
+    val toTarget = allPaths.filter(_._1 == target).map(_._3)
+    println(toTarget.max)
 
 
 
