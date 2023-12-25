@@ -28,7 +28,15 @@ def extEuclid(a:Long, b:Long):(Long, Long, Long) =
 def gcd(a:Long, b:Long) = extEuclid(a, b)(0)
 
 /** A lazy list of the Int primes */
-lazy val primes: LazyList[Int] = 2 #:: LazyList.from(3, 2).filter(isPrime)
+lazy val primes:LazyList[Long] = LazyList.iterate(2L) { (n) => 
+    var cursor = n + 1
+    val subseq = primes.iterator.takeWhile(_ < Math.sqrt(n))
+    while subseq.exists((d) => cursor % d == 0) do
+        cursor = cursor + 1
+
+    // println("new prime" + cursor)
+    cursor
+}
 
 def isPrime(x: Long): Boolean =
   primes.takeWhile(p => p * p <= x).forall(x % _ != 0)
@@ -38,10 +46,21 @@ def isPrime(x: Long): Boolean =
 def primeFactors(n:Long):List[Long] = 
     @tailrec def nextFactor(n:Long, found:List[Long]):List[Long] = 
         if n == 1 then found else
-            val p = primes.find(n % _ == 0).get
-            nextFactor(n / p, p :: found)
+            primes.takeWhile(p => p * p <= n).find(n % _ == 0) match {
+                case Some(p) => 
+                    val r = n / p 
+                    // println(s"$p $r")
+                    nextFactor(n / p, p :: found)
+                case None =>
+                    n :: found
+            }
 
     nextFactor(n, Nil)
+
+def compositeFactors(n:Long):Seq[Long] = 
+    val pf = primeFactors(n)
+    val sets = (1 to pf.length).flatMap(pf.combinations(_).toSeq)
+    1 +: sets.map((s:Seq[Long]) => s.product)
 
 def primesFactorsIn(s:Seq[Long]) = for 
     l <- s

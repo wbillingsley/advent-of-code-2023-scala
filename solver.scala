@@ -87,23 +87,131 @@ def xCrossingT(h1:Hailstone, h2:Hailstone) = {
 
     val hailstones = lines.map(decompose)
 
-    val pairs = hailstones.combinations(2)
+    val pairs = hailstones.combinations(2).toSeq
 
-    // val (low, high) = (7L, 27L)
-    val (low, high) = (200000000000000L, 400000000000000L)
+    // Sets of hailstones that have the same velocity
+    val matchingVx = for 
+        h <- hailstones.toSet
+        matchVx = (for h2 <- hailstones if h != h2 && h.vx == h2.vx yield h2) if matchVx.length > 0
+    yield matchVx.toSet + h
+
+    val matchingVy = for 
+        h <- hailstones.toSet
+        matchVy = (for h2 <- hailstones if h != h2 && h.vy == h2.vy yield h2) if matchVy.length > 0
+    yield matchVy.toSet + h
+
+    val matchingVz = for 
+        h <- hailstones.toSet
+        matchVz = (for h2 <- hailstones if h != h2 && h.vz == h2.vz yield h2) if matchVz.length > 0
+    yield matchVz.toSet + h
+
+
+    // We're after integer solutions
+    // t = (x1 - x2) / dv
+
+    def candidateVx(pair:(Hailstone, Hailstone)):Seq[Long] = 
+        val (h1, h2) = pair
+        val dx = Math.abs(h1.x - h2.x)
+        for 
+            f <- compositeFactors(dx) 
+            v <- Seq(h1.vx + f, h1.vx - f, f - h1.vx, -f - h1.vx)
+        yield v
+
+    def candidateVy(pair:(Hailstone, Hailstone)):Seq[Long] = 
+        val (h1, h2) = pair
+        val dx = Math.abs(h1.y - h2.y)
+        for 
+            f <- compositeFactors(dx) 
+            v <- Seq(h1.vy + f, h1.vy - f, f - h1.vy, -f - h1.vy)
+        yield v
+
+    def candidateVz(pair:(Hailstone, Hailstone)):Seq[Long] = 
+        val (h1, h2) = pair
+        val dz = Math.abs(h1.z - h2.z)
+        for 
+            f <- compositeFactors(dz) 
+            v <- Seq(h1.vz + f, h1.vz - f, f - h1.vz, -f - h1.vz)
+        yield v
+
+    val vxs = (for 
+        set <- matchingVx.toSeq
+        pairs = set.toSeq.combinations(2)
+        reduced = (for Seq(a, b) <- pairs yield candidateVx(a, b)).reduce(_.intersect(_))
+    yield reduced).reduce(_.intersect(_))
+
+    val vys = (for 
+        set <- matchingVy.toSeq
+        pairs = set.toSeq.combinations(2)
+        reduced = (for Seq(a, b) <- pairs yield candidateVy(a, b)).reduce(_.intersect(_))
+    yield reduced).reduce(_.intersect(_))
+
+    val vzs = (for 
+        set <- matchingVz.toSeq
+        pairs = set.toSeq.combinations(2)
+        reduced = (for Seq(a, b) <- pairs yield candidateVz(a, b)).reduce(_.intersect(_))
+    yield reduced).reduce(_.intersect(_))
+
+    println("Possible vx " + vxs)
+    println("Possible vy " + vys)
+    println("Possible vz " + vzs)
+
+    // Collisions only happen forwards in time. We must either be "behind" and going faster, or "ahead" and going slower
+
+    // These sort both the sign of the velocity and the range that the position can start within
+
+    val vx = (for 
+        vx <- vxs
+        slowerThan = hailstones.filter(_.vx > vx)
+        fasterThan = hailstones.filter(_.vx < vx)
+
+        // We must therefore be "ahead" of the largest x in slowerThan
+        aheadOf = slowerThan.map(_.x).max
+        behind = fasterThan.map(_.x).min if aheadOf < behind
+    yield
+        println(s"VX: $vx $aheadOf $behind")
+        vx)(0)
+
+    val vy = (for 
+        vy <- vys
+        slowerThan = hailstones.filter(_.vy > vy)
+        fasterThan = hailstones.filter(_.vy < vy)
+
+        // We must therefore be "ahead" of the largest x in slowerThan
+        aheadOf = slowerThan.map(_.y).max
+        behind = fasterThan.map(_.y).min if aheadOf < behind
+    yield
+        println(s"VY: $vy $aheadOf $behind")
+        vy)(0)
+
+    val vz = (for 
+        vz <- vzs
+        slowerThan = hailstones.filter(_.vz > vz)
+        fasterThan = hailstones.filter(_.vz < vz)
+
+        // We must therefore be "ahead" of the largest x in slowerThan
+        aheadOf = slowerThan.map(_.z).max
+        behind = fasterThan.map(_.z).min if aheadOf < behind
+    yield
+        println(s"VZ: $vz $aheadOf $behind")
+        vz)(0)
+
+
+    // For my input, this gives us
+    // VX: 242 140479173011833 141278788412130
+    // VY: 83 224188413045844 224547131890092
+    // VZ: 168 205903455579299 209088305076919
+
+
+    // a = (242 - h.vx) . t + h.x
+    // b = (83 - h.vy) . t + h.y
+
+
+    // dv = dx / t
+    //
+
+
     
-    val result = pairs.count({ case Seq(a, b) => 
-        a.xyIntersect(b).exists((xx, yy) => 
-
-            val r = low <= xx && xx <= high && low <= yy && yy <= high && a.isFutureX(xx) && b.isFutureX(xx)
-
-            println(s"$a $b  -- $xx $yy -- $r")
-            r
-
-        )
-    })
-
-    println(s"Result is $result")
+    // r = x + (vx - vr) t
 
 
 
