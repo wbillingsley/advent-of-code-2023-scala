@@ -1,6 +1,6 @@
-// This is the solution for part 2
-// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star47/solver.scala
-// (or select the "star47" branch from GitHub)
+// This is the solution for part 1
+// For the solution to part 2, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star50/solver.scala
+// (or select the "star50" branch from GitHub)
 
 import scala.io.*
 import scala.annotation.tailrec
@@ -10,221 +10,185 @@ import util.*
 import scala.collection.immutable.Queue
 
 import scala.collection.mutable
+import java.{util => ju}
+import scala.util.Random
 
-type Coord3 = (Long, Long, Long)
+type Connection = (String, String)
 
-// Position and Velocity
-type Hailstone = (Coord3, Coord3)
+extension (c:Connection) {
+    def a = c._1
+    def b = c._2
+    def nodes = Seq(c.a, c.b)
+}
 
-// Abbreviations
-extension (h:Hailstone) {
+case class ConnectionSet(s:Set[Connection]) {
 
-    def x = h._1._1
-    def y = h._1._2
-    def z = h._1._3
+    lazy val leftNodeMap = s.groupBy(_.a).toMap
+    lazy val rightNodeMap = s.groupBy(_.b).toMap
 
-    def vx = h._2._1
-    def vy = h._2._2
-    def vz = h._2._3
+    lazy val nodes = leftNodeMap.keySet ++ rightNodeMap.keySet
 
-    def pos = (h.x, h.y, h.z)
+    def connectionsFor(node:String):Set[Connection] = leftNodeMap.getOrElse(node, Set.empty) ++ rightNodeMap.getOrElse(node, Set.empty)
 
-    def at(t:Long) = 
-        (h.x + t * h.vx, h.y + t * h.vy, h.z + t * h.vz)
+    def removed(c:Connection):ConnectionSet = 
+        val reverse = (c._2, c._1)
+        ConnectionSet((s - c) - reverse)
 
-    def yGradient:Double = 
-        val ((x, y, z), (vx, vy, vz)) = h
-        vy.toDouble / vx
+    @tailrec
+    final def reachableFrom(a:Set[String], visited:Set[String] = Set.empty):Set[String] = {
+        if a.isEmpty then visited else
+            val next = for 
+                n <- a
+                c <- connectionsFor(n)
+                node <- c.nodes if node != n && !visited.contains(node)
+            yield node
+            reachableFrom(next, visited ++ a)
+    }
 
-    // x value where it crosses the y axis
-    def yCrossing:Double =
-        val ((x, y, z), (vx, vy, vz)) = h
-        x - y / yGradient
+    @tailrec
+    final def bfsUntil[T](a:Set[String], visited:Set[String] = Set.empty)(effect: Set[String] => Option[T]):Option[T] = {
+        if a.isEmpty then None else
+            val next = for 
+                n <- a
+                c <- connectionsFor(n)
+                node <- c.nodes if !a.contains(node) && !visited.contains(node)
+            yield node
+            val r = effect(next)
+            if r.nonEmpty then r else bfsUntil(next, visited ++ a)(effect) 
+    }
 
-    def y0 = h.yAt(0)
+    def nodePathFromTo(from:String, to:String):Option[List[String]] = 
+        var sets:List[Set[String]] = List(Set(from))
+        val search = bfsUntil(Set(from)) { (set) => 
+            sets = set :: sets
+            if set.contains(to) then Some(sets) else None
+        }
 
-    def isFutureX(x:Double) = 
-        val dir = (Math.abs(h.vx) / h.vx).toInt
-        val dir2 = (Math.abs(x - h.x) / (x - h.x)).toInt
-        dir == dir2
+        search match {
+            case None => None
+            case Some(list) => 
+                // println(s"Contains : " + list.head.contains(to))
+                Some(list.tail.foldLeft(List(to)) { case (path, set) => 
+                    // println(s" $path $set")
+                    val poss = connectionsFor(path.head).flatMap(_.nodes)
+                    set.find((n) => poss.contains(n)) match {
+                        case Some(n) => n :: path
+                        case None =>
+                            println(s"From: $from to $to")
+                            println(s"Path: $path")
+                            println(s"Set: $set")
+                            println(s"Poss: $poss")
+                            println(s"List: $list")
+                            throw ju.NoSuchElementException()
+                    }
+                })
+        }
 
-    def yAt(x:Double) = 
-        (x - h.yCrossing) * h.yGradient
-
-    def xyIntersect(h2:Hailstone) :Option[(Double, Double)] = 
-        if h.yParallel(h2) then None else
-            val ydiff = h.y0 - h2.y0
-            val x = ydiff / (h2.yGradient - h.yGradient)
-            val y = h.yGradient * (x - h.yCrossing)
-            Some((x, y))
+    def connPathFromTo(from:String, to:String):Option[List[Connection]] = 
+        for np <- nodePathFromTo(from, to) yield 
+            np.zip(np.tail).map { (a, b) => (a, b) }
 
 
-    def yParallel(h2:Hailstone) = 
-        h.yGradient == h2.yGradient
+    def isBridge(c:Connection):Boolean =         
+        !removed(c).reachableFrom(Set(c.a)).contains(c.b)
 
-    // def yCrossing(h2:Hailstone):Option[(Double, Double)] = 
-    //     if h.yParallel(h2) then None else
-    //         val gDiff = h.yGradient - h2.yGradient
-    //         // 
-    //         val y0 = h2.y (h.x - h2.x) * gDiff
+    def bridges = s.filter(isBridge(_))
+
+    def bridgeCount = bridges.size
 
 }
 
-def decompose(line:String):Hailstone = {
-    val s"$x, $y, $z @ $vx, $vy, $vz" = line
-    val p = (x.trim.toLong, y.trim.toLong, z.trim.toLong)
-    val v = (vx.trim.toLong, vy.trim.toLong, vz.trim.toLong)
-    (p, v)
+def decompose(line:String):Set[Connection] = {
+    val s"$from: $toList" = line
+    val to = toList.split(' ').map(_.trim).toSeq
+    (for b <- to yield from -> b).toSet
 }
 
 
 
 @main def main() = 
     val lines = Source.fromFile("input.txt").getLines().toSeq
+    
+    val cs = ConnectionSet(lines.map(decompose).reduce(_ ++ _))
 
-    val hailstones = lines.map(decompose)
+    // So, first I misread the problem and thought we were splitting it into *three*
+    // (In which case, removing one of the edges would leave two bridges.)
+    // But no, we're only splitting it in two.
+    // println(set.find((c) => connections.removed(c).bridges.nonEmpty))
 
-    val pairs = hailstones.combinations(2).toSeq
+    def bottleneck(connections:ConnectionSet):Connection = {
 
-    // Sets of hailstones that have the same velocity
-    val matchingVx = for 
-        h <- hailstones.toSet
-        matchVx = (for h2 <- hailstones if h != h2 && h.vx == h2.vx yield h2) if matchVx.length > 0
-    yield matchVx.toSet + h
+        // If we walk from some nodes to their most distant nodes, we ought to pass through the "neck" most
+        def longestPath(santa:String):List[Connection] = {
+            var step = 1
+            val distMap = mutable.Map.empty[String, Int]
+            connections.bfsUntil(Set(santa)) { (set) => 
+                for n <- set do 
+                    distMap(n) = step
+                step = step + 1
+                None
+            }
 
-    val matchingVy = for 
-        h <- hailstones.toSet
-        matchVy = (for h2 <- hailstones if h != h2 && h.vy == h2.vy yield h2) if matchVy.length > 0
-    yield matchVy.toSet + h
+            val furthest = distMap.maxBy(_._2)._1
+            connections.connPathFromTo(santa, furthest).get
+        }
 
-    val matchingVz = for 
-        h <- hailstones.toSet
-        matchVz = (for h2 <- hailstones if h != h2 && h.vz == h2.vz yield h2) if matchVz.length > 0
-    yield matchVz.toSet + h
+        val connList = for 
+            i <- 0 until 70
+            santa = connections.s.toSeq(Random.nextInt(connections.s.size)).a
+            lp = longestPath(santa)
+            conn <- lp
+        yield conn
 
-
-    // We're after integer solutions
-    // t = (x1 - x2) / dv
-
-    def candidateVx(pair:(Hailstone, Hailstone)):Seq[Long] = 
-        val (h1, h2) = pair
-        val dx = Math.abs(h1.x - h2.x)
-        for 
-            f <- compositeFactors(dx) 
-            v <- Seq(h1.vx + f, h1.vx - f, f - h1.vx, -f - h1.vx)
-        yield v
-
-    def candidateVy(pair:(Hailstone, Hailstone)):Seq[Long] = 
-        val (h1, h2) = pair
-        val dx = Math.abs(h1.y - h2.y)
-        for 
-            f <- compositeFactors(dx) 
-            v <- Seq(h1.vy + f, h1.vy - f, f - h1.vy, -f - h1.vy)
-        yield v
-
-    def candidateVz(pair:(Hailstone, Hailstone)):Seq[Long] = 
-        val (h1, h2) = pair
-        val dz = Math.abs(h1.z - h2.z)
-        for 
-            f <- compositeFactors(dz) 
-            v <- Seq(h1.vz + f, h1.vz - f, f - h1.vz, -f - h1.vz)
-        yield v
-
-    val vxs = (for 
-        set <- matchingVx.toSeq
-        pairs = set.toSeq.combinations(2)
-        reduced = (for Seq(a, b) <- pairs yield candidateVx(a, b)).reduce(_.intersect(_))
-    yield reduced).reduce(_.intersect(_))
-
-    val vys = (for 
-        set <- matchingVy.toSeq
-        pairs = set.toSeq.combinations(2)
-        reduced = (for Seq(a, b) <- pairs yield candidateVy(a, b)).reduce(_.intersect(_))
-    yield reduced).reduce(_.intersect(_))
-
-    val vzs = (for 
-        set <- matchingVz.toSeq
-        pairs = set.toSeq.combinations(2)
-        reduced = (for Seq(a, b) <- pairs yield candidateVz(a, b)).reduce(_.intersect(_))
-    yield reduced).reduce(_.intersect(_))
-
-    println("Possible vx " + vxs)
-    println("Possible vy " + vys)
-    println("Possible vz " + vzs)
-
-    // Collisions only happen forwards in time. We must either be "behind" and going faster, or "ahead" and going slower
-
-    // These sort both the sign of the velocity and the range that the position can start within
-
-    val (vx, xmin, xmax) = (for 
-        vx <- vxs
-        slowerThan = hailstones.filter(_.vx > vx)
-        fasterThan = hailstones.filter(_.vx < vx)
-
-        // We must therefore be "ahead" of the largest x in slowerThan
-        aheadOf = slowerThan.map(_.x).max
-        behind = fasterThan.map(_.x).min if aheadOf < behind
-    yield
-        println(s"VX: $vx $aheadOf $behind")
-        (vx, aheadOf, behind))(0)
-
-    val (vy, ymin, ymax) = (for 
-        vy <- vys
-        slowerThan = hailstones.filter(_.vy > vy)
-        fasterThan = hailstones.filter(_.vy < vy)
-
-        // We must therefore be "ahead" of the largest x in slowerThan
-        aheadOf = slowerThan.map(_.y).max
-        behind = fasterThan.map(_.y).min if aheadOf < behind
-    yield
-        println(s"VY: $vy $aheadOf $behind")
-        (vy, aheadOf, behind))(0)
-
-    val (vz, zmin, zmax) = (for 
-        vz <- vzs
-        slowerThan = hailstones.filter(_.vz > vz)
-        fasterThan = hailstones.filter(_.vz < vz)
-
-        // We must therefore be "ahead" of the largest x in slowerThan
-        aheadOf = slowerThan.map(_.z).max
-        behind = fasterThan.map(_.z).min if aheadOf < behind
-    yield
-        println(s"VZ: $vz $aheadOf $behind")
-        (vz, aheadOf, behind))(0)
+        val counts = connList.groupBy(identity).map({ (c, cc) => (c, cc.length)})
 
 
-    // For my input, this gives us
-    // VX: 242 140479173011833 141278788412130
-    // VY: 83 224188413045844 224547131890092
-    // VZ: 168 205903455579299 209088305076919
+        counts.maxBy(_._2)._1
+
+    }
+
+    var cursor = cs
+    for i <- 1 to 3 do
+        val b = bottleneck(cursor)
+        cursor = cursor.removed(b)
+        println(s"$i : $b")
+
+    // A few runs gives us different combinations
+
+    // Time to verify
+    val split = cs.removed("zcj" -> "rtt").removed("txl" -> "hxq").removed("gxv" -> "tpn")
+    val canSpan = split.nodePathFromTo("zcj", "rtt")
+    println(s"Still reachable is $canSpan")
+
+    // And by changing the list based on what we saw on the path, we can eventually find the three manually-iteratively. (Edit program and repeat)
+    // 1 : (zcj,rtt)
+    // 2 : (txl,hxq)
+    // 3 : (gxv,tpn)
+
+    println(s"Total size was ${cs.nodes.size}")
+
+    val left = split.reachableFrom(Set("zcj"))
+    val right = split.reachableFrom(Set("rtt"))
+
+    println(s"Left is ${left.size} right is ${right.size}, mult is ${left.size * right.size}, sanity check total is ${left.size + right.size}")
 
 
-    // Time to narrow the range
+    println("mapped")
+    // val pairs = connections.nodes.toSeq.combinations(2).take(100)
 
-    // For the ones travelling at the same speed as us in a particular direction, we can just take their starting position
-    for h <- hailstones do
-        if h.vx == vx then println(s"x is ${h.x}")
-        if h.vy == vy then println(s"y is ${h.y}")
-        if h.vz == vz then println(s"z is ${h.z}")
+    // val commonNodes = (for 
+    //     Seq(a, b) <- pairs
+    //     p <- connections.nodePathFromTo(a, b).toSeq
+    //     node <- p
+    // yield node).toSeq.groupBy(identity).map({ (n, nn) => n -> nn.length })
 
-    // x is 140604613634294
-    // z is 206098283112689
-    // z is 206098283112689
+    // val tryThis = commonNodes.toSeq.sortBy(-_._2).take(3)
+    // println(tryThis)
 
-    // So, it turns out we only need the y-starting value, which we can now get from any hailstone
+    // val test = Set("a" -> "b", "b" -> "d", "a" -> "c", "a" -> "d", "x" -> "y", "x" -> "z", "c" -> "x")
+    // println(s"Test: " + ConnectionSet(test).isBridge("a" -> "b"))
 
-    val x = 140604613634294L
-    val z = 206098283112689L
 
-    val h = hailstones(1)
-    val t = (h.x - x) / (vx - h.vx)
-    println(s"t0 is $t")
-
-    val y = (h.y + t * h.vy) - (t * vy) // given it's a collision
-
-    println(s" And y is $y")
-
-    println(s"ans is ${x + y + z}") 
 
     // May be useful to have this to spot crashes if using watch
     println("Re-ran at: " + java.util.Date().toLocaleString())
