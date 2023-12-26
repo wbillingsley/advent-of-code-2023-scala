@@ -1,6 +1,6 @@
 // This is the solution for part 2
-// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star45/solver.scala
-// (or select the "star45" branch from GitHub)
+// For the solution to part 1, https://github.com/wbillingsley/advent-of-code-2023-scala/blob/star47/solver.scala
+// (or select the "star47" branch from GitHub)
 
 import scala.io.*
 import scala.annotation.tailrec
@@ -227,58 +227,12 @@ def xCrossingT(h1:Hailstone, h2:Hailstone) = {
     val h = hailstones(1)
     val t = (h.x - x) / (vx - h.vx)
     println(s"t0 is $t")
-    val y = h.y + t * h.vy // given it's a collision
+
+    val y = (h.y + t * h.vy) - (t * vy) // given it's a collision
 
     println(s" And y is $y")
 
-    println(s"ans is ${x + y + z}") // Curious. Said it's too high
-
-    val rock = (x, y, z) -> (vx, vy, vz)
-
-
-    
-
-
-
-    // val times = for 
-    //     h <- hailstones
-    //     tx1 = Math.max((h.x - xmin) / (vx - h.vx), 0)
-    //     tx2 = Math.max((h.x - xmax) / (vx - h.vx), 0)
-    //     ty1 = Math.max((h.y - ymin) / (vy - h.vy), 0)
-    //     ty2 = Math.max((h.y - ymax) / (vy - h.vy), 0)
-    //     tz1 = Math.max((h.z - zmin) / (vz - h.vz), 0)
-    //     tz2 = Math.max((h.z - zmax) / (vz - h.vz), 0)
-    // yield
-    //     val tmin = Seq(
-    //         Math.min(tx1, tx2),
-    //         Math.min(ty1, ty2),
-    //         Math.min(tz1, tz2),
-    //     ).max
-    //     val tmax =  Seq(
-    //         Math.max(tx1, tx2),
-    //         Math.max(ty1, ty2),
-    //         Math.max(tz1, tz2),
-    //     ).min
-
-    //     (tmin, tmax)
-
-    // println(times(0))
-    
-    
-
-
-    // a = (242 - h.vx) . t + h.x
-    // b = (83 - h.vy) . t + h.y
-
-
-    // dv = dx / t
-    //
-
-
-    
-    // r = x + (vx - vr) t
-
-
+    println(s"ans is ${x + y + z}") 
 
     // May be useful to have this to spot crashes if using watch
     println("Re-ran at: " + java.util.Date().toLocaleString())
