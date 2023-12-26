@@ -13,8 +13,10 @@ import scala.collection.mutable
 
 type Coord3 = (Long, Long, Long)
 
+// Position and Velocity
 type Hailstone = (Coord3, Coord3)
 
+// Abbreviations
 extension (h:Hailstone) {
 
     def x = h._1._1
@@ -73,16 +75,6 @@ def decompose(line:String):Hailstone = {
     val p = (x.trim.toLong, y.trim.toLong, z.trim.toLong)
     val v = (vx.trim.toLong, vy.trim.toLong, vz.trim.toLong)
     (p, v)
-}
-
-// Solves for t when x coordinates cross. Unfortunately, RTQ, that's not what we're doing
-def xCrossingT(h1:Hailstone, h2:Hailstone) = {
-    // x1 + tVx1 = x2 + tVx2
-    // x1 - x2 = tVx2 - tVx1
-    // x1 - x2 = t(Vx2 - Vx1)
-    // t = (x1 - x2) / (Vx2 - Vx1)
-
-    (h1._1._1 - h2._1._1).toDouble / (h2._2._1 - h1._2._1).toDouble    
 }
 
 
