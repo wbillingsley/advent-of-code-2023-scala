@@ -25,6 +25,11 @@ extension (h:Hailstone) {
     def vy = h._2._2
     def vz = h._2._3
 
+    def pos = (h.x, h.y, h.z)
+
+    def at(t:Long) = 
+        (h.x + t * h.vx, h.y + t * h.vy, h.z + t * h.vz)
+
     def yGradient:Double = 
         val ((x, y, z), (vx, vy, vz)) = h
         vy.toDouble / vx
@@ -159,7 +164,7 @@ def xCrossingT(h1:Hailstone, h2:Hailstone) = {
 
     // These sort both the sign of the velocity and the range that the position can start within
 
-    val vx = (for 
+    val (vx, xmin, xmax) = (for 
         vx <- vxs
         slowerThan = hailstones.filter(_.vx > vx)
         fasterThan = hailstones.filter(_.vx < vx)
@@ -169,9 +174,9 @@ def xCrossingT(h1:Hailstone, h2:Hailstone) = {
         behind = fasterThan.map(_.x).min if aheadOf < behind
     yield
         println(s"VX: $vx $aheadOf $behind")
-        vx)(0)
+        (vx, aheadOf, behind))(0)
 
-    val vy = (for 
+    val (vy, ymin, ymax) = (for 
         vy <- vys
         slowerThan = hailstones.filter(_.vy > vy)
         fasterThan = hailstones.filter(_.vy < vy)
@@ -181,9 +186,9 @@ def xCrossingT(h1:Hailstone, h2:Hailstone) = {
         behind = fasterThan.map(_.y).min if aheadOf < behind
     yield
         println(s"VY: $vy $aheadOf $behind")
-        vy)(0)
+        (vy, aheadOf, behind))(0)
 
-    val vz = (for 
+    val (vz, zmin, zmax) = (for 
         vz <- vzs
         slowerThan = hailstones.filter(_.vz > vz)
         fasterThan = hailstones.filter(_.vz < vz)
@@ -193,13 +198,73 @@ def xCrossingT(h1:Hailstone, h2:Hailstone) = {
         behind = fasterThan.map(_.z).min if aheadOf < behind
     yield
         println(s"VZ: $vz $aheadOf $behind")
-        vz)(0)
+        (vz, aheadOf, behind))(0)
 
 
     // For my input, this gives us
     // VX: 242 140479173011833 141278788412130
     // VY: 83 224188413045844 224547131890092
     // VZ: 168 205903455579299 209088305076919
+
+
+    // Time to narrow the range
+
+    // For the ones travelling at the same speed as us in a particular direction, we can just take their starting position
+    for h <- hailstones do
+        if h.vx == vx then println(s"x is ${h.x}")
+        if h.vy == vy then println(s"y is ${h.y}")
+        if h.vz == vz then println(s"z is ${h.z}")
+
+    // x is 140604613634294
+    // z is 206098283112689
+    // z is 206098283112689
+
+    // So, it turns out we only need the y-starting value, which we can now get from any hailstone
+
+    val x = 140604613634294L
+    val z = 206098283112689L
+
+    val h = hailstones(1)
+    val t = (h.x - x) / (vx - h.vx)
+    println(s"t0 is $t")
+    val y = h.y + t * h.vy // given it's a collision
+
+    println(s" And y is $y")
+
+    println(s"ans is ${x + y + z}") // Curious. Said it's too high
+
+    val rock = (x, y, z) -> (vx, vy, vz)
+
+
+    
+
+
+
+    // val times = for 
+    //     h <- hailstones
+    //     tx1 = Math.max((h.x - xmin) / (vx - h.vx), 0)
+    //     tx2 = Math.max((h.x - xmax) / (vx - h.vx), 0)
+    //     ty1 = Math.max((h.y - ymin) / (vy - h.vy), 0)
+    //     ty2 = Math.max((h.y - ymax) / (vy - h.vy), 0)
+    //     tz1 = Math.max((h.z - zmin) / (vz - h.vz), 0)
+    //     tz2 = Math.max((h.z - zmax) / (vz - h.vz), 0)
+    // yield
+    //     val tmin = Seq(
+    //         Math.min(tx1, tx2),
+    //         Math.min(ty1, ty2),
+    //         Math.min(tz1, tz2),
+    //     ).max
+    //     val tmax =  Seq(
+    //         Math.max(tx1, tx2),
+    //         Math.max(ty1, ty2),
+    //         Math.max(tz1, tz2),
+    //     ).min
+
+    //     (tmin, tmax)
+
+    // println(times(0))
+    
+    
 
 
     // a = (242 - h.vx) . t + h.x
